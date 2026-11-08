@@ -12,6 +12,11 @@ class mtEffectCompresor : public mtEffect
     virtual bool getProcessState() override;
     virtual uint32_t getExpectedProcessLength() override;
 
+#if TRACKER_CE_ENABLE_SD_EDITS
+    // Foreground-only, continuous per-channel DSP; startProcess initializes once.
+    void processSdChannel(unsigned channel, int16_t* input, int16_t* output, int count);
+#endif
+
   private:
     static constexpr int kProcessingBlockLength = 8192;
 

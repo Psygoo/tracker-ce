@@ -116,6 +116,13 @@ int32_t mtEffectEQ::processBlock()
     uint32_t toProcess = length - processedSamples;
     uint32_t blockLength = std::min<uint32_t>(toProcess, UPDATE_BLOCK_LENGTH);
 
+#if TRACKER_CE_ENABLE_SD_EDITS
+    for (int channel = 0; channel < kChannels; channel++)
+    {
+        processSdChannel(
+          channel, channelParams[channel].srcAddr, channelParams[channel].dstAddr, blockLength);
+    }
+#else
     for (int channel = 0; channel < kChannels; channel++)
     {
         for (uint16_t i = 0; i < blockLength; i++)
@@ -142,6 +149,7 @@ int32_t mtEffectEQ::processBlock()
             channelParams[channel].srcAddr++;
         }
     }
+#endif
 
     if (blockLength < UPDATE_BLOCK_LENGTH)
     {
@@ -184,3 +192,37 @@ float mtEffectEQ::calculateBandwidth(float freq, float q)
 }
 
 mtEffectEQ sampleEditorEQ;
+
+#if TRACKER_CE_ENABLE_SD_EDITS
+void mtEffectEQ::processSdChannel(unsigned channel,
+                                  int16_t* input,
+                                  int16_t* output,
+                                  unsigned blockLength)
+{
+    channelParams[channel].srcAddr = input;
+    channelParams[channel].dstAddr = output;
+    for (uint16_t i = 0; i < blockLength; i++)
+    {
+        float out = (float)*channelParams[channel].srcAddr / INT16_MAX;
+
+        if (levelLow != 1)
+        {
+            out = computeSample(&channelParams[channel].ctxLow, out);
+        }
+        if (levelMid != 1)
+        {
+            out = computeSample(&channelParams[channel].ctxMid, out);
+        }
+        if (levelHigh != 1)
+        {
+            out = computeSample(&channelParams[channel].ctxHigh, out);
+        }
+
+        out = out > 1.0 ? 1.0 : (out < -1.0 ? -1.0 : out);
+
+        *channelParams[channel].dstAddr = (int16_t)(out * INT16_MAX);
+        channelParams[channel].dstAddr++;
+        channelParams[channel].srcAddr++;
+    }
+}
+#endif

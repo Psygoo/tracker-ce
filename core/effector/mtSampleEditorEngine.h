@@ -21,6 +21,9 @@ enum enSampleEditorEffect
     editorEffectTimestretchNote,
     editorEffectFadeIn,
     editorEffectFadeOut,
+#if TRACKER_CE_ENABLE_SD_MONO
+    editorEffectStereoMonoSD,
+#endif
     editorEffectModular,
 
     //**********************//

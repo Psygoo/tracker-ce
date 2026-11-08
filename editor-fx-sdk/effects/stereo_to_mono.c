@@ -4,6 +4,7 @@
 // PTFX_SCRATCH: 0
 
 #include "tracker_plugin.h"
+#include "../../core/effector/sampleProcessing/PcmEffects.h"
 
 // Knobs: Source Channel (String List) & Gain Trim
 const PluginParam PLUGIN_PARAMS[2] = {
@@ -41,48 +42,10 @@ int32_t plugin_process_block(const int16_t** in, int16_t** out, uint32_t samples
         return 0;
     }
 
-    // Single-channel source or identical input channels (mono)
-    if (channels < 2 || !in[1] || in[0] == in[1]) {
-        for (uint32_t i = 0; i < samples; i++) {
-            int16_t s = (s_gain == 1.0f) ? in[0][i] : (int16_t)SATURATE_16BIT((int32_t)(in[0][i] * s_gain));
-            out[0][i] = s;
-            if (channels > 1 && out[1]) {
-                out[1][i] = s;
-            }
-        }
-        return samples;
+    const int stereo=channels>=2&&in[1]&&in[0]!=in[1];
+    for(uint32_t i=0;i<samples;++i){
+        const int16_t pcm=ce_pcm_mono(in[0][i],stereo?in[1][i]:in[0][i],s_mode,s_gain,stereo);
+        out[0][i]=pcm;if(channels>1&&out[1])out[1][i]=pcm;
     }
-
-    const int16_t* left  = in[0];
-    const int16_t* right = in[1];
-    int16_t* out_l = out[0];
-    int16_t* out_r = out[1] ? out[1] : out[0];
-
-    for (uint32_t i = 0; i < samples; i++) {
-        int32_t mono_val = left[i];
-
-        switch (s_mode) {
-            case 0: // Merge (L + R) / 2
-                mono_val = ((int32_t)left[i] + (int32_t)right[i]) / 2;
-                break;
-            case 1: // Keep Left Only (discard Right channel)
-                mono_val = left[i];
-                break;
-            case 2: // Keep Right Only (discard Left channel)
-                mono_val = right[i];
-                break;
-            case 3: // Side / Difference (L - R) / 2
-                mono_val = ((int32_t)left[i] - (int32_t)right[i]) / 2;
-                break;
-            default:
-                mono_val = left[i];
-                break;
-        }
-
-        int16_t pcm = (s_gain == 1.0f) ? (int16_t)mono_val : (int16_t)SATURATE_16BIT((int32_t)(mono_val * s_gain));
-        out_l[i] = pcm;
-        out_r[i] = pcm;
-    }
-
     return samples;
 }

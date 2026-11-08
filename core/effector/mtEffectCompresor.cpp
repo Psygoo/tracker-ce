@@ -54,6 +54,15 @@ int32_t mtEffectCompresor::processBlock()
         state = false;
     }
 
+#if TRACKER_CE_ENABLE_SD_EDITS
+    for (int channel = 0; channel < kChannels; channel++)
+    {
+        processSdChannel(channel,
+                         channelParams[channel].srcAddr,
+                         channelParams[channel].dstAddr,
+                         processedBlockLength);
+    }
+#else
     for (int channel = 0; channel < kChannels; channel++)
     {
         for (int idx = 0; idx < processedBlockLength; idx++)
@@ -92,6 +101,7 @@ int32_t mtEffectCompresor::processBlock()
         channelParams[channel].srcAddr += processedBlockLength;
         channelParams[channel].dstAddr += processedBlockLength;
     }
+#endif
 
     processedSamples += processedBlockLength;
     if (!state)
@@ -118,3 +128,47 @@ uint32_t mtEffectCompresor::getExpectedProcessLength()
 
 mtEffectCompresor sampleEditorCompresor;
 //***********
+
+#if TRACKER_CE_ENABLE_SD_EDITS
+void mtEffectCompresor::processSdChannel(unsigned channel,
+                                         int16_t* input,
+                                         int16_t* output,
+                                         int processedBlockLength)
+{
+    channelParams[channel].srcAddr = input;
+    channelParams[channel].dstAddr = output;
+    for (int idx = 0; idx < processedBlockLength; idx++)
+    {
+        float normalizedInput = channelParams[channel].srcAddr[idx] < 0
+                                  ? (float)channelParams[channel].srcAddr[idx] /
+                                      (float)std::numeric_limits<int16_t>::min()
+                                  : (float)channelParams[channel].srcAddr[idx] /
+                                      (float)std::numeric_limits<int16_t>::max();
+
+        channelParams[channel].inputRms = (1 - timeAverageCoeff) * channelParams[channel].inputRms +
+                                          timeAverageCoeff * powf(normalizedInput, 2);
+
+        channelParams[channel].logarythmicInput = 10 * log10f(channelParams[channel].inputRms);
+        channelParams[channel].logarythmicGain = std::min<float>(
+          compressorSlope * (compressorThreshold - channelParams[channel].logarythmicInput), 0.0f);
+
+        channelParams[channel].linearGain =
+          powf(10.0f, channelParams[channel].logarythmicGain / 20.0f);
+
+        channelParams[channel].filterCoeff =
+          channelParams[channel].linearGain < channelParams[channel].filteredLinearGain
+            ? attackCoeff
+            : releaseCoeff;
+
+        channelParams[channel].filteredLinearGain =
+          (1 - channelParams[channel].filterCoeff) * channelParams[channel].filteredLinearGain +
+          channelParams[channel].filterCoeff * channelParams[channel].linearGain;
+
+        channelParams[channel].dstAddr[idx] =
+          channelParams[channel].filteredLinearGain * channelParams[channel].srcAddr[idx];
+    }
+
+    channelParams[channel].srcAddr += processedBlockLength;
+    channelParams[channel].dstAddr += processedBlockLength;
+}
+#endif

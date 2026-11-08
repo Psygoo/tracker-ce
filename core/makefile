@@ -1,3 +1,4 @@
+include $(dir $(firstword $(MAKEFILE_LIST)))../sample-editor-options.mk
 # Variables to provide (example values):
 # TOOLCHAIN=/usr/local/bin/arm-none-eabi-
 # PLATFORM=MK66 (MK66 and IMX are valid values)
@@ -9,7 +10,7 @@ TARGET		:= libTracker.a
 # Build environment setup
 .DEFAULT_GOAL := build
 
-BUILD_DIR   := build-$(PLATFORM)-$(PRODUCT)
+BUILD_DIR   := build-$(PLATFORM)-$(PRODUCT)$(FIRMWARE_BUILD_SUFFIX)
 OBJ_DIR 	:= $(BUILD_DIR)/obj/
 RM 			:= rm -rf
 
@@ -39,6 +40,10 @@ ifdef DEBUG
 COMPILER_OPTIONS+=-Og -DDEBUG
 else
 COMPILER_OPTIONS+=-O2 -DNDEBUG
+endif
+
+ifneq ($(filter 1,$(TRACKER_CE_ENABLE_SD_MONO) $(TRACKER_CE_ENABLE_SD_EDITS)),)
+INCLUDES+=-I../platforms/imx/device -I../platforms/imx/CMSIS -I../platforms/imx/config
 endif
 
 CPP_OPTIONS=-std=gnu++20 -felide-constructors -includecstdint -fno-rtti -fno-exceptions 

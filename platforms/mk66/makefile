@@ -1,3 +1,4 @@
+include $(dir $(firstword $(MAKEFILE_LIST)))../../sample-editor-options.mk
 # Variables to provide (example values):
 #
 # TOOLCHAIN=/usr/local/bin/arm-none-eabi-

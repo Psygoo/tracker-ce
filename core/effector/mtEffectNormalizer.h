@@ -12,6 +12,9 @@ class mtEffectNormalizer : public mtEffect
     virtual bool getProcessState() override;
     virtual uint32_t getExpectedProcessLength() override;
 
+#if TRACKER_CE_ENABLE_SD_EDITS
+    bool startPreview(const int peaks[2]);
+#endif
   private:
     int find_max(int16_t* ptr, int len);
 

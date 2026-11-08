@@ -1,3 +1,12 @@
+#if TRACKER_CE_ENABLE_SD_MONO
+#include "mtEffectStereoMono.h"
+#endif
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+#include "SampleFileEdit.h"
+#include "SamplePreviewEffects.h"
+#include "SamplePreview.h"
+#include "SampleEditNotifications.h"
+#endif
 #include "core/graphicProcessing.h"
 #include "core/interfaceMenuPopup.h"
 #include "core/interfacePopups.h"
@@ -20,6 +29,58 @@ __NOINIT(EXTERNAL_RAM) strInstrument cSampleEditor::sampleEditInstrument;
 cSampleEditor sampleEditor;
 
 static cSampleEditor* SE = &sampleEditor;
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+static bool streamedEditorSelected(cSampleEditor*ed){const auto slot=mtProject.values.lastUsedInstrument;return slot<48&&mtProject.sampleMemory[slot].isStreamed&&ed->editorInstrument->sample.length>EDIT_BUFF_SIZE/2;}
+static bool streamedEditorSpectrum(cSampleEditor*ed,unsigned ch){
+ if(!streamedEditorSelected(ed))return false;
+ const auto slot=mtProject.values.lastUsedInstrument;
+ if(!mtProject.sampleMemory[slot].hasWaveformPeaks){for(unsigned i=0;i<600;++i){ed->spectrumData[ch].upperData[i]=0;ed->spectrumData[ch].lowerData[i]=0;}ed->spectrumData[ch].spectrumType=1;return true;}
+ GP.processSpectrum(&mtProject.sampleMemory[slot],&mtProject.instrument[slot],&ed->zoom,&ed->spectrumData[ch],static_cast<strSampleMemory::Channel>(ch));return true;
+}
+#endif
+static void releaseLargePreview(){
+    if(!samplepreview::active())return;
+    // Native hard cut cancels stacked playback and stops both channels before
+    // the temporary memory can be returned to Apply or the next Preview.
+    mtPadBoard.stopInstrument(INTERFACE_BUTTON_PREVIEW);
+    samplepreview::release();
+    const bool showingProgress=SE->playingInProgress||SE->processingInProgress;
+    SE->playingInProgress=0;SE->processingInProgress=0;
+    if(showingProgress){SE->hideProgressPopup();SE->restoreFunctions();SE->setPreviewFunction();}
+}
+static void cancelLargePreview(){
+    releaseLargePreview();SE->processingInProgress=0;SE->hideProgressPopup();
+    SE->restoreFunctions();SE->setPreviewFunction();
+}
+static void monoOK(){SE->hideStaticPopup();SE->switchScreen(SE->screenType);SE->setCommonFunctions();}
+static void monoMessage(const char*text){
+    SE->showStaticPopupCommonWindow();mtPopups.showInfoPopup(text,nullptr);
+    SE->ip->clearAll();SE->ip->setButtonObj(interfaceButton7,buttonPress,monoOK);
+    display.setControlText(SE->label[7],"OK");display.refreshControl(SE->label[7]);
+}
+static void monoCancel(){sampleedit::cancel();}
+static bool cropInProgress=false;
+static void monoBegin(){
+    releaseLargePreview();
+    if(SE->confirmedDataIsChanged){monoMessage("Save current editor changes first.");return;}
+    for(auto effect:sampleEditorEffect)effect->discardForFileOperation();
+    bool started=false;cropInProgress=false;
+#if TRACKER_CE_ENABLE_SD_MONO
+    if(isMonoEffect(SE->currentEffectIdx))started=sampleedit::begin(mtProject.values.lastUsedInstrument,static_cast<sampleedit::Mode>(static_cast<unsigned>(SE->effectDisplayParamsToAdjust[editorEffectStereoMonoSD].parameter[0])),SE->effectDisplayParamsToAdjust[editorEffectStereoMonoSD].parameter[1],SE->selection.startPoint,SE->selection.endPoint);
+#endif
+#if TRACKER_CE_ENABLE_SD_EDITS
+    if(isSdRegionEffect(SE->currentEffectIdx,SE->editorInstrument->sample.length)){
+        const auto op=SE->currentEffectIdx==editorEffectCut?sampleedit::Edit::Crop:SE->currentEffectIdx==editorEffectReverse?sampleedit::Edit::Reverse:SE->currentEffectIdx==editorEffectFadeIn?sampleedit::Edit::FadeIn:SE->currentEffectIdx==editorEffectFadeOut?sampleedit::Edit::FadeOut:SE->currentEffectIdx==editorEffectNormalizer?sampleedit::Edit::Normalize:SE->currentEffectIdx==editorEffectAmplifier?sampleedit::Edit::Amplifier:SE->currentEffectIdx==editorEffectOverdrive?sampleedit::Edit::Overdrive:SE->currentEffectIdx==editorEffectBitcrusher?sampleedit::Edit::Bitcrusher:SE->currentEffectIdx==editorEffectEQ?sampleedit::Edit::Equalizer:SE->currentEffectIdx==editorEffectLimiter?sampleedit::Edit::Limiter:sampleedit::Edit::Compressor;
+        cropInProgress=op==sampleedit::Edit::Crop;started=sampleedit::beginEdit(mtProject.values.lastUsedInstrument,op,SE->selection.startPoint,SE->selection.endPoint,SE->effectDisplayParamsToAdjust[SE->currentEffectIdx].parameter[0],SE->effectDisplayParamsToAdjust[SE->currentEffectIdx].parameter[1],op>=sampleedit::Edit::Equalizer?samplepreview::effectCopy(SE->currentEffectIdx):nullptr,op>=sampleedit::Edit::Equalizer?sampleEditorEffect[SE->currentEffectIdx]:nullptr);
+    }
+#endif
+    if(!started){monoMessage(sampleedit::result());return;}
+    SE->ip->clearAll();SE->ip->setButtonObj(interfaceButton6,buttonPress,monoCancel);
+    SE->applyingProgress=0;SE->showPopupApplying();display.setControlText(SE->label[7],"");display.refreshControl(SE->label[7]);display.setControlText(SE->label[6],"Cancel");display.refreshControl(SE->label[6]);
+}
+#endif
+
 
 static const uint16_t mainScreenFramePlaces[4][4] = {
     { (800 / 8) * 0 + 1, 424, 800 / 8 - 3, 55 },
@@ -83,8 +144,20 @@ static void functTooLongProcessedSampleOk();
 
 void cSampleEditor::start([[maybe_unused]] uint32_t options)
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    releaseLargePreview();
+#endif
     moduleRefresh = 1;
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(mtProject.values.lastUsedInstrument<48&&mtProject.instrument[mtProject.values.lastUsedInstrument].sample.length>EDIT_BUFF_SIZE/2&&!isSdRegionEffect(selectedEffectListIdx,mtProject.instrument[mtProject.values.lastUsedInstrument].sample.length)){
+#if TRACKER_CE_ENABLE_SD_MONO
+        selectedEffectListIdx=editorEffectStereoMonoSD;
+#else
+        selectedEffectListIdx=editorEffectCut;
+#endif
+    }
+#else
     if (mtProject.values.lastUsedInstrument < kSampleInstrumentsCount &&
         mtProject.instrument[mtProject.values.lastUsedInstrument].sample.length >
           EDIT_BUFF_SIZE / 2)
@@ -100,6 +173,7 @@ void cSampleEditor::start([[maybe_unused]] uint32_t options)
         return;
     }
 
+#endif
     if (sequencer.getSeqState() != Sequencer::SEQ_STATE_STOP)
     {
         if (mtMenuPopup.isPopupVisible())
@@ -195,6 +269,9 @@ void cSampleEditor::start([[maybe_unused]] uint32_t options)
     screenType = mainScreen;
     previewState = previewStatePreview;
     confirmedDataIsChanged = 0;
+#if TRACKER_CE_ENABLE_SD_MONO
+    convertedToMono=false;undoWasMono=false;
+#endif
 
     setMainScreenFunctions();
     setCommonFunctions();
@@ -211,7 +288,11 @@ void cSampleEditor::start([[maybe_unused]] uint32_t options)
     currentEffect->clearProcessedData();
     currentEffect->setBaseSampleLength(editorInstrument->sample.length);
 
-    if (editorInstrument->isActive &&
+    if (
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+        !isSdMonoEffect(currentEffectIdx,editorInstrument->sample.length)&&
+#endif
+        editorInstrument->isActive &&
         mtProject.values.lastUsedInstrument < kSampleInstrumentsCount &&
         mtProject.sampleMemory[mtProject.values.lastUsedInstrument].isStreamed)
     {
@@ -243,6 +324,9 @@ void cSampleEditor::start([[maybe_unused]] uint32_t options)
                                     idx);
     }
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(editorInstrument->sample.length<=EDIT_BUFF_SIZE/2)
+#endif
     currentEffect->changeSelectionRange(selection.startPoint, selection.endPoint);
 
     sequencer.setMidiInVoiceMode(Sequencer::midiInVoiceMode_SampleEditor);
@@ -250,6 +334,33 @@ void cSampleEditor::start([[maybe_unused]] uint32_t options)
 
 void cSampleEditor::update()
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(samplepreview::active()&&!samplepreview::valid())cancelLargePreview();
+    if(samplepreview::busy()||(samplepreview::active()&&!samplepreview::ready())){
+        samplepreview::tick();processingProgress=samplepreview::progress();showProgressProcessing();
+        if(!samplepreview::busy()){
+            const bool success=samplepreview::ready();const char*text=samplepreview::error();
+            processingInProgress=0;hideProgressPopup();restoreFunctions();
+            if(success){setPlayFunction();functPlay();}
+            else{releaseLargePreview();setPreviewFunction();monoMessage(text);}
+        }
+        return;
+    }
+#endif
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(sampleedit::active()){
+        sampleedit::tick();applyingProgress=sampleedit::progress();showProgressApplying();
+        if(!sampleedit::cancellable()){ip->clearButton(interfaceButton6);display.setControlText(label[6],"Wait");display.refreshControl(label[6]);}
+        if(sampleedit::done()){
+            const auto a=selection.startPoint,b=selection.endPoint;const bool success=sampleedit::succeeded();const bool cropped=cropInProgress&&sampleedit::applied();const auto text=sampleedit::result();
+            hideProgressPopup();start(0);
+            if(!cropped){selection.startPoint=a;selection.endPoint=b;refreshStartPoint();refreshEndPoint();needRefreshSpectrum=1;}
+            if(!success)monoMessage(text); // Keep failures/cancellation and cleanup warnings visible.
+        }
+        return;
+    }
+#endif
+
     if (needRefreshSpectrum)
     {
         needRefreshSpectrum = 0;
@@ -300,6 +411,12 @@ void cSampleEditor::update()
 
             if (applyingProgress)
             {
+#if TRACKER_CE_ENABLE_SD_MONO
+                if(isMonoEffect(currentEffectIdx)){sampleEditorStereoMono.synchronizeOutputChannels();convertedToMono=true;}
+#endif
+#if TRACKER_CE_ENABLE_SD_EDITS
+                if(currentEffectIdx==editorEffectCut)sampleedit::metadataChanged(mtProject.values.lastUsedInstrument,true);
+#endif
                 if (currentEffectIdx == editorEffectModular)
                 {
                     sampleEditorModular.onApplyCommitted(mtProject.values.lastUsedInstrument);
@@ -405,6 +522,13 @@ void cSampleEditor::update()
 
 void cSampleEditor::stop()
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    releaseLargePreview();
+#endif
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(sampleedit::active()){sampleedit::cancel();sampleedit::result();}
+#endif
+
     moduleRefresh = 0;
     if (!avoidStop)
     {
@@ -536,6 +660,9 @@ void cSampleEditor::setParamsScreenFunctions()
         case previewStateStop: ip->setButtonObj(interfaceButton6, buttonPress, functStop); break;
     }
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(previewState != previewStateStop && !canPreviewCurrentEffect()) ip->clearButton(interfaceButton6);
+#endif
     ip->setButtonObj(interfaceButton7, buttonPress, functSave);
 
     ip->setPotObj(interfacePot0, functParamsScreenEncoder);
@@ -558,6 +685,10 @@ void cSampleEditor::setTooLongProcessedSampleFunctions()
 }
 bool cSampleEditor::isParametersScreen()
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(isMonoEffect(currentEffectIdx))return false;
+#endif
+
     if (currentEffectIdx == editorEffectModular)
     {
         return (getCurrentEffectDisplayParams().paramsNumber == 0);
@@ -566,8 +697,33 @@ bool cSampleEditor::isParametersScreen()
            (currentEffectIdx == editorEffectFadeIn) || (currentEffectIdx == editorEffectFadeOut);
 }
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+bool cSampleEditor::canUseMainAction()
+{
+    // A parameter window can be useful for Preview even without SD Apply.
+    // Opening it must not depend on the selection, free workspace or Undo.
+    if(!isParametersScreen() && editorInstrument &&
+       editorInstrument->sample.length>EDIT_BUFF_SIZE/2 &&
+       samplepreview::supported(currentEffectIdx))return editorInstrument->isActive;
+    return canApplyCurrentEffect();
+}
+
+bool cSampleEditor::canPreviewCurrentEffect() const
+{
+    if(editorInstrument && editorInstrument->sample.length > EDIT_BUFF_SIZE / 2) return editorInstrument->isActive&&selection.startPoint!=selection.endPoint&&currentEffect&&!currentEffect->hasPreviewWorkspaceConflict()&&!confirmedDataIsChanged&&samplepreview::supported(currentEffectIdx);
+    return canApplyCurrentEffect();
+}
+
+#endif
+
 bool cSampleEditor::canApplyCurrentEffect() const
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(isMonoEffect(currentEffectIdx))return mtProject.values.lastUsedInstrument<48&&mtProject.instrument[mtProject.values.lastUsedInstrument].isActive&&mtProject.instrument[mtProject.values.lastUsedInstrument].sample.length>0&&selection.startPoint!=selection.endPoint;
+    if(editorInstrument&&isSdRegionEffect(currentEffectIdx,editorInstrument->sample.length))return editorInstrument->isActive&&selection.startPoint!=selection.endPoint;
+    if(editorInstrument&&editorInstrument->sample.length>EDIT_BUFF_SIZE/2)return false;
+#endif
+
     bool hasSampleData = (editorInstrument != nullptr &&
                           editorInstrument->isActive &&
                           editorInstrument->sample.length > 0) ||
@@ -626,6 +782,11 @@ void cSampleEditor::noteOnHandle(uint8_t channel,
                                  [[maybe_unused]] uint8_t velocity,
                                  int16_t source)
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    // The native pad preview accepts RAM pointers, not a streamed instrument.
+    if(streamedEditorSelected(this))return;
+#endif
+
     if (mtPadBoard.getEmptyVoice() == 0)
     {
         SE->needRefreshPlayhead = 1;
@@ -686,7 +847,11 @@ bool cSampleEditor::isCurrentSampleStereo()
             return false;
         }
 
-        if (!newFileManager.isInstrumentStereo(mtProject.values.lastUsedInstrument))
+        if (
+#if TRACKER_CE_ENABLE_SD_MONO
+            convertedToMono||
+#endif
+            !newFileManager.isInstrumentStereo(mtProject.values.lastUsedInstrument))
         {
             const int16_t* left  = currentEffect->getAddresToPolyphonicPlay(mtEffect::Channel::kLeft);
             const int16_t* right = currentEffect->getAddresToPolyphonicPlay(mtEffect::Channel::kRight);
@@ -696,6 +861,9 @@ bool cSampleEditor::isCurrentSampleStereo()
             {
                 return true;
             }
+#if TRACKER_CE_ENABLE_SD_MONO
+            return false;
+#endif
         }
     }
 #endif
@@ -713,6 +881,9 @@ void cSampleEditor::prepareDisplayDataMainScreen()
 
     if (spectrumParams[0].address != nullptr && spectrumParams[0].length > 0)
     {
+        #if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+        if(!streamedEditorSpectrum(this,0))
+#endif
         GP.processSpectrum(&spectrumParams[0], &zoom, &spectrumData[0]);
     }
     else
@@ -728,6 +899,9 @@ void cSampleEditor::prepareDisplayDataMainScreen()
     if (isCurrentSampleStereo() &&
         spectrumParams[1].address != nullptr && spectrumParams[1].length > 0)
     {
+        #if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+        if(!streamedEditorSpectrum(this,1))
+#endif
         GP.processSpectrum(&spectrumParams[1], &zoom, &spectrumData[1]);
     }
     else
@@ -830,6 +1004,9 @@ void cSampleEditor::reloadSpectrumData()
       currentEffect->getAddresToPolyphonicPlay(mtEffect::Channel::kLeft);
     sampleEditorSampleMemory.address[mtEffect::Channel::kRight] =
       currentEffect->getAddresToPolyphonicPlay(mtEffect::Channel::kRight);
+#if TRACKER_CE_ENABLE_SD_MONO
+    if(convertedToMono&&!isCurrentSampleStereo())sampleEditorSampleMemory.address[mtEffect::Channel::kRight]=sampleEditorSampleMemory.address[mtEffect::Channel::kLeft];
+#endif
     editorInstrument->sample.length = currentEffect->getLengthToPolyphonicPlay();
     spectrumParams[mtEffect::Channel::kLeft].address =
       sampleEditorSampleMemory.address[mtEffect::Channel::kLeft];
@@ -1115,7 +1292,12 @@ void cSampleEditor::refreshEffectList()
     }
     display.setControlColors(
       label[5],
-      canApplyCurrentEffect() ? display.getTheme().activeButtonLabelsColors
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+      canUseMainAction()
+#else
+      canApplyCurrentEffect()
+#endif
+      ? display.getTheme().activeButtonLabelsColors
                               : display.getTheme().inactiveLabelsColors);
     display.refreshControl(label[5]);
 
@@ -1138,9 +1320,15 @@ void cSampleEditor::refreshSpectrum()
     if (screenType != mainScreen)
         return;
 
-    GP.processSpectrum(&spectrumParams[0], &zoom, &spectrumData[0]);
+    #if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+        if(!streamedEditorSpectrum(this,0))
+#endif
+        GP.processSpectrum(&spectrumParams[0], &zoom, &spectrumData[0]);
     if (isCurrentSampleStereo())
     {
+        #if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+        if(!streamedEditorSpectrum(this,1))
+#endif
         GP.processSpectrum(&spectrumParams[1], &zoom, &spectrumData[1]);
     }
 
@@ -1205,6 +1393,9 @@ void cSampleEditor::refreshPlayingProgress()
 // MainScreen
 void cSampleEditor::modStartPoint(int16_t val)
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    releaseLargePreview();
+#endif
     uint16_t move_step = zoom.zoomWidth / 600;
     val *= move_step;
 
@@ -1233,6 +1424,9 @@ void cSampleEditor::modStartPoint(int16_t val)
     zoom.zoomPosition = selection.startPoint;
     zoom.lastChangedPoint = 1;
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(editorInstrument->sample.length<=EDIT_BUFF_SIZE/2)
+#endif
     currentEffect->changeSelectionRange(selection.startPoint, selection.endPoint);
 
     refreshStartPoint();
@@ -1240,6 +1434,9 @@ void cSampleEditor::modStartPoint(int16_t val)
 
 void cSampleEditor::modEndPoint(int16_t val)
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    releaseLargePreview();
+#endif
     uint16_t move_step = zoom.zoomWidth / 600;
     val *= move_step;
 
@@ -1268,6 +1465,9 @@ void cSampleEditor::modEndPoint(int16_t val)
     zoom.zoomPosition = selection.endPoint;
     zoom.lastChangedPoint = 2;
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(editorInstrument->sample.length<=EDIT_BUFF_SIZE/2)
+#endif
     currentEffect->changeSelectionRange(selection.startPoint, selection.endPoint);
 
     refreshEndPoint();
@@ -1296,6 +1496,9 @@ void cSampleEditor::resetZoom()
 
 void cSampleEditor::modSelectedEffect(int16_t val)
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    releaseLargePreview();
+#endif
     val = clamp<int>(val, -5, 5);
 
     uint16_t lastSelectedIdx = selectedEffectListIdx;
@@ -1320,7 +1523,10 @@ void cSampleEditor::modSelectedEffect(int16_t val)
 
             currentEffect->clearProcessedData();
             currentEffect->setBaseSampleLength(editorInstrument->sample.length);
-            currentEffect->changeSelectionRange(selection.startPoint, selection.endPoint);
+        #if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(editorInstrument->sample.length<=EDIT_BUFF_SIZE/2)
+#endif
+    currentEffect->changeSelectionRange(selection.startPoint, selection.endPoint);
 
             for (uint8_t idx = 0; idx < getCurrentEffectDisplayParams().paramsNumber; idx++)
             {
@@ -1342,7 +1548,10 @@ void cSampleEditor::modSelectedEffect(int16_t val)
 
             currentEffect->clearProcessedData();
             currentEffect->setBaseSampleLength(editorInstrument->sample.length);
-            currentEffect->changeSelectionRange(selection.startPoint, selection.endPoint);
+        #if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(editorInstrument->sample.length<=EDIT_BUFF_SIZE/2)
+#endif
+    currentEffect->changeSelectionRange(selection.startPoint, selection.endPoint);
 
             for (uint8_t idx = 0; idx < getCurrentEffectDisplayParams().paramsNumber; idx++)
             {
@@ -1378,6 +1587,9 @@ void cSampleEditor::setDefaultStartPoint()
     zoom.zoomPosition = selection.startPoint;
     zoom.lastChangedPoint = 1;
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(editorInstrument->sample.length<=EDIT_BUFF_SIZE/2)
+#endif
     currentEffect->changeSelectionRange(selection.startPoint, selection.endPoint);
 
     refreshStartPoint();
@@ -1405,6 +1617,9 @@ void cSampleEditor::setDefaultEndPoint()
     zoom.zoomPosition = selection.endPoint;
     zoom.lastChangedPoint = 2;
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(editorInstrument->sample.length<=EDIT_BUFF_SIZE/2)
+#endif
     currentEffect->changeSelectionRange(selection.startPoint, selection.endPoint);
 
     refreshEndPoint();
@@ -1419,6 +1634,9 @@ void cSampleEditor::setDefaultZoom()
 // ParameterScreen
 void cSampleEditor::modParameter(int16_t value, uint8_t idx)
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    releaseLargePreview();
+#endif
     const auto& params = getCurrentEffectDisplayParams();
     float localParam = effectDisplayParamsToAdjust[currentEffectIdx].parameter[idx];
     float localVal = (value * params.changeStep[idx]);
@@ -1437,6 +1655,9 @@ void cSampleEditor::modParameter(int16_t value, uint8_t idx)
 
 void cSampleEditor::setDefaultParameter(uint8_t idx)
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    releaseLargePreview();
+#endif
     if (currentEffectIdx == editorEffectModular)
     {
         const PtfxHeader& header = PtfxManager::getActiveHeader();
@@ -1492,6 +1713,9 @@ bool cSampleEditor::areThereMoreThanOneParamsPage()
 void cSampleEditor::setPreviewFunction()
 {
     ip->clearButton(interfaceButton6);
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(canPreviewCurrentEffect())
+#endif
     ip->setButtonObj(interfaceButton6, buttonPress, functPreview);
 
     previewState = previewStatePreview;
@@ -1502,6 +1726,9 @@ void cSampleEditor::setPreviewFunction()
 void cSampleEditor::setPlayFunction()
 {
     ip->clearButton(interfaceButton6);
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(canPreviewCurrentEffect())
+#endif
     ip->setButtonObj(interfaceButton6, buttonPress, functPlay);
 
     previewState = previewStatePlay;
@@ -1801,6 +2028,9 @@ static void functUndo()
     }
 
     SE->currentEffect->undo();
+#if TRACKER_CE_ENABLE_SD_MONO
+    std::swap(SE->convertedToMono,SE->undoWasMono);
+#endif
     SE->refreshUndoState();
 
     SE->reloadSpectrumData();
@@ -1815,7 +2045,13 @@ static void functUndo()
 
 static void functApply()
 {
-    if (!SE->canApplyCurrentEffect())
+    if (
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+        !SE->canUseMainAction()
+#else
+        !SE->canApplyCurrentEffect()
+#endif
+    )
     {
         return;
     }
@@ -1922,6 +2158,17 @@ static void functSelectParameter(uint8_t button)
 
 static void functPreview()
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(!SE->canPreviewCurrentEffect())return;
+    if(SE->editorInstrument->sample.length>EDIT_BUFF_SIZE/2){
+        releaseLargePreview();
+        mtPadBoard.stopInstrument(INTERFACE_BUTTON_PREVIEW);
+        if(!samplepreview::begin(mtProject.values.lastUsedInstrument,SE->currentEffectIdx,*SE->currentEffect,SE->selection.startPoint,SE->selection.endPoint)){monoMessage(samplepreview::error());return;}
+        SE->processingInProgress=1;SE->processingProgress=0;SE->showPopupProcessing();SE->ip->clearAll();
+        SE->ip->setButtonObj(interfaceButton6,buttonPress,cancelLargePreview);
+        display.setControlText(SE->label[6],"Cancel");display.refreshControl(SE->label[6]);return;
+    }
+#endif
     if (!SE->canApplyCurrentEffect())
     {
         return;
@@ -1979,6 +2226,9 @@ static void functPreview()
 
     SE->processingProgress = 0;
     SE->showProgressProcessing();
+#if TRACKER_CE_ENABLE_SD_MONO
+    if(isMonoEffect(SE->currentEffectIdx))sampleEditorStereoMono.setInputStereo(SE->isCurrentSampleStereo());
+#endif
     SE->currentEffect->processSelection();
 
     if (SE->processingSteps &&
@@ -1993,6 +2243,10 @@ static void functPreview()
 
 static void functPlay()
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(!SE->canPreviewCurrentEffect())return;
+    if(SE->editorInstrument->sample.length>EDIT_BUFF_SIZE/2&&(!samplepreview::ready()||!samplepreview::valid())){functPreview();return;}
+#endif
     mtPadBoard.cutAllInstrument();
 
     std::vector<int16_t*> addresses;
@@ -2000,6 +2254,9 @@ static void functPlay()
     for (int channel = 0; channel < mtEffect::kChannels; channel++)
     {
         addresses.push_back(
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+          samplepreview::ready()?samplepreview::data(channel):
+#endif
           SE->currentEffect->getSampleAddresToPreview((mtEffect::Channel)channel));
     }
 
@@ -2012,6 +2269,9 @@ static void functPlay()
     mtPadBoard.startNoteWithoutInstrument(
       60,
       addresses,
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+      samplepreview::ready()?samplepreview::frames():
+#endif
       SE->currentEffect->getSampleLengthToPreview(),
       vol,
       INTERFACE_BUTTON_PREVIEW); // tego nie moze robic midi
@@ -2040,6 +2300,9 @@ static void functBack()
 
 static void functSave()
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(isSdMonoEffect(SE->currentEffectIdx,SE->editorInstrument->sample.length)||isSdRegionEffect(SE->currentEffectIdx,SE->editorInstrument->sample.length)){monoBegin();return;}
+#endif
     if (!SE->canApplyCurrentEffect())
     {
         return;
@@ -2100,6 +2363,10 @@ static void functSave()
     }
 
     SE->applyingProgress = 0;
+#if TRACKER_CE_ENABLE_SD_MONO
+    SE->undoWasMono=SE->convertedToMono;
+    if(isMonoEffect(SE->currentEffectIdx))sampleEditorStereoMono.setInputStereo(SE->isCurrentSampleStereo());
+#endif
     SE->currentEffect->apply();
 
     if (SE->applyingSteps &&
@@ -2117,6 +2384,12 @@ static void functSave()
 
     if (!SE->applyingSteps)
     {
+#if TRACKER_CE_ENABLE_SD_MONO
+        if(isMonoEffect(SE->currentEffectIdx)){sampleEditorStereoMono.synchronizeOutputChannels();SE->convertedToMono=true;}
+#endif
+#if TRACKER_CE_ENABLE_SD_EDITS
+        if(SE->currentEffectIdx==editorEffectCut)sampleedit::metadataChanged(mtProject.values.lastUsedInstrument,true);
+#endif
         if (SE->currentEffectIdx == editorEffectModular)
         {
             sampleEditorModular.onApplyCommitted(mtProject.values.lastUsedInstrument);
@@ -2305,6 +2578,9 @@ bool cSampleEditor::isParameterList(uint8_t paramIdx) const
 
 uint8_t cSampleEditor::getParameterListCount(uint8_t paramIdx) const
 {
+#if TRACKER_CE_ENABLE_SD_MONO
+    if(isMonoEffect(currentEffectIdx)&&paramIdx==0)return 4;
+#endif
     if (currentEffectIdx == editorEffectModular && paramIdx < kMaxParametersInEffect)
     {
         return s_modularListCounts[paramIdx];
@@ -2314,6 +2590,9 @@ uint8_t cSampleEditor::getParameterListCount(uint8_t paramIdx) const
 
 char** cSampleEditor::getParameterListItems(uint8_t paramIdx) const
 {
+#if TRACKER_CE_ENABLE_SD_MONO
+    if(isMonoEffect(currentEffectIdx)&&paramIdx==0)return sdMonoParams::items;
+#endif
     if (currentEffectIdx == editorEffectModular && paramIdx < kMaxParametersInEffect)
     {
         return &s_modularListItems[paramIdx][0];

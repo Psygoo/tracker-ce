@@ -9,6 +9,9 @@ class mtDataCopyier
   public:
     mtDataCopyier(uint32_t blockSize);
     void start(int16_t* src, int16_t* dst, uint32_t len);
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    void cancel(){state=false;currentSrc=currentDst=nullptr;length=currentLength=0;}
+#endif
     bool getState();
     int32_t update();
 

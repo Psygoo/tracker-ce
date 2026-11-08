@@ -1,3 +1,6 @@
+#if TRACKER_CE_ENABLE_SD_EDITS
+#include "sampleProcessing/NativeDrive.h"
+#endif
 #include "mtEffectOverdrive.h"
 #include "mtStructs.h"
 
@@ -54,7 +57,11 @@ int32_t mtEffectOverdrive::processBlock()
     {
         for (uint16_t i = 0; i < blockLength; i++)
         {
-            int16_t outVal = 0;
+            int16_t outVal;
+#if TRACKER_CE_ENABLE_SD_EDITS
+            outVal = sampleedit::overdriveSample(*channelParams[channel].srcAddr, gainNorm, unsigned(type));
+#else
+            outVal = 0;
 
             // https://ccrma.stanford.edu/~orchi/Documents/DAFx.pdf
             // https://www.dafx12.york.ac.uk/papers/dafx12_submission_45.pdf
@@ -109,6 +116,7 @@ int32_t mtEffectOverdrive::processBlock()
                 default: assert(0);
             }
 
+#endif
             *channelParams[channel].dstAddr = (int16_t)outVal;
             channelParams[channel].dstAddr++;
             channelParams[channel].srcAddr++;

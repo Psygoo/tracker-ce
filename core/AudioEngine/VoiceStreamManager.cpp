@@ -1813,3 +1813,19 @@ void VoiceStreamManager::updateSynchronous()
         }
     }
 }
+
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+void VoiceStreamManager::installMonoCache(int slot,const char*path,uint32_t offset,const MonoCache&cache,bool streamed,uint32_t frames,const MonoCache*right){
+    invalidateInstrumentVoices(slot);
+    auto&mem=mtProject.sampleMemory[slot];
+    strncpy(s_instrumentStreamPaths[slot],streamed?path:"",PATCH_SIZE-1);s_instrumentStreamPaths[slot][PATCH_SIZE-1]=0;
+    memcpy(s_instrumentClmt[slot],cache.clmt,sizeof(cache.clmt));
+    for(int ch=0;ch<kMaxChannels;++ch)memcpy(s_instrumentWaveformPeaks[slot][ch],ch&&right?right->peaks:cache.peaks,sizeof(cache.peaks));
+    for(unsigned i=0;i<48;++i){s_instrumentSliceCache[slot][i]={cache.slices[i].startFrame,cache.slices[i].frameCount,cache.slices[i].bufferOffset};}
+    s_instrumentSliceCacheValid[slot]=streamed&&cache.sliced;
+    mem.isStereo=right!=nullptr;mem.isStreamed=streamed;mem.ramFrames=streamed?((frames<kStreamPreCacheFrames)?frames:kStreamPreCacheFrames):frames;
+    mem.preCacheFrames=streamed?cache.linearFrames:frames;mem.fileDataOffset=offset;
+    mem.hasValidClmt=streamed;mem.databaseSector=cache.databaseSector;mem.sectorsPerCluster=cache.sectorsPerCluster;
+    mem.hasWaveformPeaks=true;mem.sampleHash=cache.hash;mem.address[1]=mem.address[0]+(right?mem.ramFrames:0);
+}
+#endif

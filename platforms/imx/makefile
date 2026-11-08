@@ -1,3 +1,4 @@
+include $(dir $(firstword $(MAKEFILE_LIST)))../../sample-editor-options.mk
 # Variables to provide (example values):
 #
 # TOOLCHAIN=/usr/local/bin/arm-none-eabi-
@@ -24,7 +25,7 @@ endif
 # Build environment setup
 .DEFAULT_GOAL := build
 
-BUILD_DIR	:= build-$(PRODUCT)
+BUILD_DIR	:= build-$(PRODUCT)$(FIRMWARE_BUILD_SUFFIX)
 OBJ_DIR 	:= $(BUILD_DIR)/obj/
 RM 			:= rm -rf
 
@@ -96,7 +97,7 @@ $(OBJ_DIR)/%.o: %.S config/config.h
 	$(TOOLCHAIN)gcc -c -x assembler-with-cpp -mcpu=cortex-m7 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb $(DEFINES) $(INCLUDES) -g -o "$@" "$<"
  
 $(TARGET): $(OBJS_SORTED)
-	@$(TOOLCHAIN)c++ -L ./linker -L ./linker/$(TARGET) -L ./3rdparty/math -L ${POLYSYNTH_DIR}/lib -L${TRACKER_DIR}/build-IMX-$(PRODUCT) -Xlinker --defsym=__rtc_localtime=0 -Xlinker -print-memory-usage -Xlinker --gc-sections -mcpu=cortex-m7 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -nostdlib -T linkerScript.ld -u _printf_float -o "$(BUILD_DIR)/$(TARGET).axf" $(OBJS_SORTED) $(LIBS)
+	@$(TOOLCHAIN)c++ -L ./linker -L ./linker/$(TARGET) -L ./3rdparty/math -L ${POLYSYNTH_DIR}/lib -L${TRACKER_DIR}/build-IMX-$(PRODUCT)$(FIRMWARE_BUILD_SUFFIX) -Xlinker --defsym=__rtc_localtime=0 -Xlinker -print-memory-usage -Xlinker --gc-sections -mcpu=cortex-m7 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mthumb -nostdlib -T linkerScript.ld -u _printf_float -o "$(BUILD_DIR)/$(TARGET).axf" $(OBJS_SORTED) $(LIBS)
 	@$(MAKE) --no-print-directory post-build
 	
 # Main rules

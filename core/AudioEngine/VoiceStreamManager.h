@@ -22,6 +22,17 @@ class VoiceStreamManager
     static constexpr uint32_t kLoopWrapFrames = 2048; // 4 KB per channel loop wrap pre-cache
     static constexpr uint32_t kLookbehindFrames = 512;
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    struct MonoCache {
+        struct Slice {uint32_t startFrame;uint16_t frameCount,bufferOffset;} slices[48];
+        uint32_t clmt[kClmtElementCount],databaseSector,sectorsPerCluster,hash,linearFrames;
+        bool sliced;
+        WaveformPeakPoint peaks[kWaveformPeakPoints];
+        int16_t samples[kStreamPreCacheFrames];
+    };
+    // IO-free commit of a fully prepared replacement. Caller blocks the target.
+    void installMonoCache(int slot,const char*path,uint32_t offset,const MonoCache&cache,bool streamed,uint32_t frames,const MonoCache*right=nullptr);
+#endif
     void init(FileSystem* fileSystem = nullptr);
 
     // Non-blocking background scheduler (call from main loop / updateSdStream)

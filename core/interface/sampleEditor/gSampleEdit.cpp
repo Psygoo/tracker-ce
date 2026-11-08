@@ -217,6 +217,12 @@ void cSampleEditor::showMainScreen()
         }
     }
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(editorInstrument&&editorInstrument->sample.length>EDIT_BUFF_SIZE/2)display.setControlColors(label[5],canUseMainAction()?display.getTheme().activeButtonLabelsColors:display.getTheme().inactiveLabelsColors);
+#endif
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(previewState != previewStateStop && !canPreviewCurrentEffect()) display.setControlColors(label[6],display.getTheme().inactiveLabelsColors);
+#endif
     if (editorInstrument->isActive)
     {
         if (!currentEffect->undoParams.isEnable)
@@ -427,6 +433,10 @@ void cSampleEditor::showEffectParamsScreen()
             display.setControlColors(label[i], display.getTheme().activeLabelsColors);
         }
     }
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(previewState != previewStateStop && !canPreviewCurrentEffect()) display.setControlColors(label[6],display.getTheme().inactiveLabelsColors);
+    if(editorInstrument&&editorInstrument->sample.length>EDIT_BUFF_SIZE/2&&!canApplyCurrentEffect())display.setControlColors(label[7],display.getTheme().inactiveLabelsColors);
+#endif
 
     for (uint8_t i = 0; i < 8; i++)
     {
@@ -780,11 +790,17 @@ void cSampleEditor::showPopupTooLongProcessedSampleWindow()
 void cSampleEditor::showPreviewLabel()
 {
     display.setControlText(label[6], "Preview");
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    display.setControlColors(label[6],canPreviewCurrentEffect()?display.getTheme().activeLabelsColors:display.getTheme().inactiveLabelsColors);
+#endif
     display.refreshControl(label[6]);
 }
 void cSampleEditor::showPlayLabel()
 {
     display.setControlText(label[6], "Preview");
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    display.setControlColors(label[6],canPreviewCurrentEffect()?display.getTheme().activeLabelsColors:display.getTheme().inactiveLabelsColors);
+#endif
     display.refreshControl(label[6]);
 }
 void cSampleEditor::showStopLabel()

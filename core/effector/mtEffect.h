@@ -55,6 +55,11 @@ class mtEffect
     virtual int32_t processBlock() = 0;
     virtual bool getProcessState() = 0;
     virtual uint32_t getExpectedProcessLength() = 0;
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    void discardForFileOperation();
+    bool hasPreviewWorkspaceConflict() const;
+    void bindPreviewBuffers(int16_t* const input[2],int16_t* const output[2],uint32_t frames);
+#endif
     void update();
     void switchToThisEffect(mtEffect* lastEffect);
     void setBaseSampleLength(uint32_t val);
