@@ -175,3 +175,7 @@ This repository is part of a growing open-source ecosystem around the Polyend Tr
   * **No Wholesale Commercial Clones**: You may **not** sell compiled `.ptf` firmware builds, manufacture/sell commercial clone hardware running the Tracker firmware, or sell a direct port/wholesale clone of the complete Tracker application as a paid software product.
 * **Precompiled Synth & DSP Libraries (`synth/lib/libPolySynth.a`, `synth/lib/libPolyDSP.a`)**: Provided under the [Polyend Precompiled Synthesizer & DSP Library License](synth/lib/LICENSE-PROPRIETARY.txt), permitting free use on authentic Polyend hardware as well as personal/DIY non-commercial projects (commercial embedding of the precompiled `.a` binaries is prohibited).
 * **Third-Party Components**: See [`NOTICE.md`](NOTICE.md).
+
+## Optional Tracker+ Sample Editor SD
+
+Bounded SD processing and ten-second Preview for large samples are available behind opt-in build flags. See [Sample Editor SD](docs/sample-editor-sd/README.md) for features, memory limits, model restrictions, build instructions and validation. Native defaults are unchanged.
