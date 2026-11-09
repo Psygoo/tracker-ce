@@ -252,7 +252,13 @@ class cSampleEditor : public ModuleBase
     void setTooLongProcessedSampleFunctions();
     bool isParametersScreen();
     bool canApplyCurrentEffect() const;
+    bool hasUndo() const;
 #if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    void initSdIndicatorControl();
+    void refreshSdIndicator(const char* title);
+    bool usesSdEditing() const;
+    void configureEffectList();
+    unsigned effectListRow() const;
     bool canPreviewCurrentEffect() const;
     bool canUseMainAction();
 #endif
@@ -412,6 +418,14 @@ class cSampleEditor : public ModuleBase
     hControl bar[8];
     hControl paramList[kEffectPageParams];
     hControl effectList;
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    hControl sdModeLabel = -1;
+    uint32_t sdModeColors[4]{};
+    strLabelData sdModeData{};
+    char* sdEffectNames[editorEffectMax]{};
+    uint8_t sdEffectIds[editorEffectMax]{};
+    unsigned sdEffectCount = 0;
+#endif
     hControl blankSpaceCover;
     hControl spectrum[2];
     hControl spectrumPoints;

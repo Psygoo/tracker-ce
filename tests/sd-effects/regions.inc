@@ -94,7 +94,7 @@ static void regionTests(){
   for(unsigned n:{1u,2u,1023u,1024u,1025u,8192u,8193u,65537u})for(bool stereo:{false,true}){regionRun(op,n,false,0,65535,stereo);regionRun(op,n,true,12345,54321,stereo);}
   regionRun(op,20000003,true,12345,54321);
   regionFailures(op,65);regionPower(op);
-  reset(33000,true);auto original=files[canonical];CHECK(sdmono::beginEdit(0,op,12345,54321,regionParameter,regionSecondary));sdmono::tick();sdmono::cancel();CHECK(sdmono::done()&&std::string(sdmono::result()).find("Cancelled")==0&&files[canonical]==original);
+  reset(33000,true);auto original=files[canonical];CHECK(sdmono::beginEdit(0,op,12345,54321,regionParameter,regionSecondary));sdmono::tick();sdmono::cancel();CHECK(sdmono::done()&&std::string(sdmono::result()).empty()&&files[canonical]==original);
  }
  regionFailures(sdmono::Edit::Reverse,33000);
  std::puts("PASS regions: all 8 effects, mono/stereo, RAM/SD, partial/full/block boundaries, >64 MB sources, original metadata");

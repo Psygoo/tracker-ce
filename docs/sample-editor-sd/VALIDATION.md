@@ -21,7 +21,7 @@ The reference patch applied directly to the new official base, 21 commits ahead,
 
 These suites compare native reference/current RAM/file PCM, four native Mono Sources/Gain, Normalize/Amplifier, all three Overdrive curves, all Bitcrusher hold steps, stateful EQ/Limiter/Compressor, 1024/8192-frame boundaries, mono/stereo, partial ranges, 10-second Preview boundaries and Preview/Apply ownership. They include very large generated input, adjacent-instrument memory spans, short writes, full-card errors, cancellation, metadata/cache installation, and startup recovery before Workspace loading. Fault/reset cases are filesystem simulations, not real-card power cuts.
 
-Save/Open compatibility is checked through intact PTI header/PCM after file close/reopen, installation of the Workspace result, and recovery before native Workspace opening. The existing project Save/Open and instrument codec bodies and layouts are unchanged. These host checks do not run the complete project UI or physical File→Open; the earlier CEDYN hardware validation is separate evidence.
+Save/Open compatibility is checked through intact PTI header/PCM after file close/reopen, installation of the Workspace result, and recovery before native Workspace opening. The existing project Save/Open and instrument codec bodies and layouts are unchanged. These host checks do not run the complete project UI or physical FileÃ¢â€ â€™Open; the earlier CEDYN hardware validation is separate evidence.
 
 ## ARM models and guards
 
@@ -48,7 +48,7 @@ The native note dispatch/sequencer, project Save/Open/Workspace codecs, instrume
 | OC | 23212 | 23212 | 0 |
 | SDRAM linker total | 67096184 | 67096148 | +36 |
 
-Runtime workspaces borrow an existing checked arena; they are not extra static PCM arrays: Apply max 146784 B; Preview max 1764928 B. Native per-effect object sizes and PCM footprint are unchanged from CEDYN. This is linker/static accounting, not a hardware stack high-watermark or worst-case streaming latency measurement.
+Runtime workspaces borrow an existing checked arena; they are not extra static PCM arrays. The historical Apply bound below predates SD Undo. Current combined-build Job is 148096 B (ARM DWARF sizeof), plus two aligned native DSP copies when used; Preview max remains 1764928 B. Native per-effect object sizes and PCM footprint are unchanged from CEDYN. This is linker/static accounting, not a hardware stack high-watermark or worst-case streaming latency measurement.
 
 ## Local QA artifact fingerprints
 
@@ -63,4 +63,12 @@ These Intel HEX PTFs are local validation outputs, not releases or automatic ins
 
 ## Remaining validation
 
-The new official base includes upstream USB/playback fixes absent from the earlier hardware-validated CEDYN. Host/ASan/ARM success does not validate those changes physically. Real SD timing, concurrent streaming, stack maximum and power-loss behavior remain hardware concerns. Large file edits still have cancellation/recovery rather than post-Apply RAM Undo, as documented in the contribution README.
+The new official base includes upstream USB/playback fixes absent from the earlier hardware-validated CEDYN. Host/ASan/ARM success does not validate those changes physically. Real SD timing, concurrent streaming, stack maximum and power-loss behavior remain hardware concerns. Large file edits now additionally provide one-level SD Undo, with a bounded, verified snapshot separate from the Workspace header; native RAM Undo is unchanged. See the current validation addendum below.
+
+## Current validated contribution (SDSWAP)
+
+The maintainer confirmed physical validation through SDSWAP. The later commits include SD Undo and its header-only Workspace fix, silent Cancel, an independent indicator with native TitleBar restored, effect filtering and the cList rebinding fix on dynamic RAM/SD switches.
+
+The transition harness executes instrument press/release, cancelGlobalPopups, full start, refreshEffectList and native cList update/animation. Host and ASan cover 300 complete cycles (600 switches) with both directions, all names and indices, pages, slots 1/48 and registries of 0/3/128 plugins. The pre-fix null-string crashes are preserved as counterexamples. Native TitleBar files remain byte-identical to the official base.
+
+Historical reports below this directory include superseded intermediate implementations and limitations; use README and the latest SDSWAP report for current behavior. Build outputs and logs remain local artifacts, not Git content.

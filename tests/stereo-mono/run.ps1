@@ -1,4 +1,4 @@
-param([switch]$AddressSanitizer,[ValidateSet(0,1)][int]$SdEdits=0)
+param([switch]$AddressSanitizer,[switch]$UndoOnly,[switch]$UIOnly,[ValidateSet(0,1)][int]$SdEdits=0)
 $ErrorActionPreference='Stop'
 $repo=(Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $out=Join-Path $repo ('build\sample-file-tests-edits-'+$SdEdits);New-Item -ItemType Directory -Force $out|Out-Null
@@ -10,6 +10,8 @@ $vcvars=Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
 $asan=if($AddressSanitizer){'/fsanitize=address /Zi'}else{''};$name=if($AddressSanitizer){'mono-asan.exe'}else{'mono-tests.exe'}
 Push-Location $out
 try{
+ if($UndoOnly){$env:TRACKER_SD_UNDO_ONLY='1'}
+ if($UIOnly){$env:TRACKER_SD_UI_ONLY='1'}
  & cmd.exe /d /c ('call "'+$vcvars+'" >nul && cl /nologo /std:c++17 /utf-8 /D_CRT_SECURE_NO_WARNINGS /DPLATFORM_IMX /DTRACKER_CE_ENABLE_SD_EDITS='+$SdEdits+' /EHsc /W4 /WX /O2 /MD '+$asan+' /I"'+$out+'" /I"'+$repo+'\core\effector" /I"'+$repo+'\core\FileManager" "'+$PSScriptRoot+'\test.cpp" /Fe:'+ $name +' && '+$name)
  if($LASTEXITCODE){throw "Mono tests failed $LASTEXITCODE"}
-}finally{Pop-Location}
+}finally{Remove-Item Env:TRACKER_SD_UNDO_ONLY -ErrorAction SilentlyContinue;Remove-Item Env:TRACKER_SD_UI_ONLY -ErrorAction SilentlyContinue;Pop-Location}

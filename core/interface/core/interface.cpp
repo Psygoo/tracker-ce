@@ -227,6 +227,9 @@ void Interface::doStartTasks()
     songTimer.initControls();
     mtPopups.initPopupsDisplayControls();
     mtMenuPopup.initPopupsDisplayControls();
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    sampleEditor.initSdIndicatorControl();
+#endif
     titleBar.initControls();
     ModuleBase::keyboardManager.initControls();
     ModuleBase::keyboardManager.init(platform->getLeds(), platform->getTimer());

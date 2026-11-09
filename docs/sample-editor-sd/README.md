@@ -11,6 +11,8 @@ This branch extends the existing Sample Editor to long samples, including SD-str
 - Apply processes the entire selection, not just the Preview excerpt. Mono/stereo, slices, loop points and other instrument settings are retained where the native edit permits. Crop follows native structural rules.
 - Success returns silently to the editor. The Workspace is updated immediately; normal project Save is still required.
 
+The SD view shows only effects supported by the actual Apply capabilities. It preserves native IDs and rebuilds the native list widget on instrument changes (SDSWAP). A separate red LONG SAMPLE / SD STREAMING MODE indicator leaves the native title and sample name untouched and uses a free area when the title bar is full.
+
 ## Architecture and ownership
 
 `sample-editor-options.mk` provides independent `TRACKER_CE_ENABLE_SD_MONO` and `TRACKER_CE_ENABLE_SD_EDITS` options. The portable kernels and conversion iterator live in `core/effector/sampleProcessing/`. The foreground Tracker+ transaction is in `core/FileManager/imx/SampleFileEdit.cpp`; bounded Preview is in `SamplePreview.cpp`. Existing Sample Editor handlers select the appropriate path. `SamplePreviewEffects` registers isolated copies of the existing native DSP objects rather than implementing another DSP.
@@ -29,9 +31,9 @@ Read/write failures, insufficient free SD space and cancellation before commit p
 
 Only Tracker+ is enabled. Original Tracker and Mini continue to build with the options off; attempts to enable SD editing on them are rejected, pending separate cache/filesystem/memory validation.
 
-No permanent PCM allocation or duration-dependent stack array is added. The file job uses a checked lease of the existing editor arena/free sample-pool tail, validated against all 48 live instruments. Max Apply workspace is 146784 bytes (including two small aligned native object copies); max stereo Preview workspace is 1764928 bytes, of which 1764000 bytes are PCM. Preview and Apply are exclusive. Insufficient memory is an error; the excerpt is not silently shortened and occupied PCM/Undo workspace is not overwritten.
+No permanent PCM allocation or duration-dependent stack array is added. The file job uses a checked lease of the existing editor arena/free sample-pool tail, validated against all 48 live instruments. The ARM file-job size is 148096 bytes in the combined build; Apply additionally leases two 32-byte-aligned native DSP object copies when required; max stereo Preview workspace is 1764928 bytes, of which 1764000 bytes are PCM. Preview and Apply are exclusive. Insufficient memory is an error; the excerpt is not silently shortened and occupied PCM/Undo workspace is not overwritten.
 
-Large edits retain the existing cancellation/recovery contract and have **no post-Apply RAM Undo**. Small-sample RAM Undo is unchanged. DSP coefficients/history continue across file blocks. Limiter's native retained history is committed only after a successful edit; failed/cancelled edits and Preview do not alter it.
+Large edits provide one-level SD Undo, retaining a verified previous sample on the card. A new successful Apply replaces that history; Cancel preserves the previous history and returns silently. Leaving the editor or changing context discards SD Undo. Small-sample RAM Undo is unchanged. DSP coefficients/history continue across file blocks. Limiter's native retained history is committed only after a successful edit; failed/cancelled edits and Preview do not alter it.
 
 The imported contribution retains these documented differences: long SD fades use indexed gain rather than accumulated float error, SD Reverse avoids the native RAM endpoint defect, normalization of silence is safe, and Bitcrusher avoids a signed-shift undefined operation while preserving its native PCM bits/8192-frame hold boundaries. Native RAM Reverse/Fade implementations are not rewritten.
 
@@ -51,6 +53,8 @@ make all # Native defaults; all three models, both options off.
 Windows host prerequisites: Python and MSVC C++ Build Tools with AddressSanitizer. No installation is performed by the runners.
 
 ```powershell
+./tests/sd-editor-ui/run.ps1
+./tests/sd-editor-ui/run.ps1 -AddressSanitizer
 ./tests/ce-editor/run.ps1
 ./tests/ce-editor/run.ps1 -AddressSanitizer
 ./tests/sd-preview/run.ps1
@@ -61,4 +65,4 @@ Windows host prerequisites: Python and MSVC C++ Build Tools with AddressSanitize
 
 The suites compile unmodified native DSP references and production routines, compare PCM, exercise mono/stereo/partial ranges and block boundaries, generated inputs larger than RAM, cancellation, short writes, full-card failures and before/after filesystem-boundary resets. The file and startup/cache-installation bodies are extracted from production. Filesystem, UI and card timing are simulated. See [validation results](VALIDATION.md) and the [detailed architecture guide](../ce-editor/UPSTREAM_PATCH.md).
 
-The earlier independent CEDYN firmware was physically validated by the maintainer. This rebase onto a newer official commit is software/build validated separately; that historical hardware result is not claimed as a physical test of this branch. No firmware is installed automatically.
+The maintainer has physically validated the independent CEDYN implementation and subsequent SDUFIX3/SDIND/SDSWAP builds of this branch, including SD Apply, Undo and dynamic RAM/SD transitions. Automated tests remain software simulations; no firmware is installed automatically.

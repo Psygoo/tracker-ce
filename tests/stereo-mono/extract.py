@@ -31,6 +31,7 @@ for name in ['Cut','Reverse','FadeIn','FadeOut']:
 (o/'stream-ui.inc').write_text(body(f,'static bool streamedEditorSelected')+'\n'+body(f,'static bool streamedEditorSpectrum'),encoding='utf-8')
 
 (o/'completion-ui.inc').write_text('void cSampleEditor::complete(){'+body(f,'if(sampleedit::done())')+'}',encoding='utf-8')
+(o/'message-ui.inc').write_text(body(f,'static void monoOK()')+'\n'+body(f,'static void monoMessage(const char*text)'),encoding='utf-8')
 assert 'Sample file operation; save after Apply.' not in f
 
 s=(r/'core/FileManager/SampleEditNotifications.cpp').read_text(encoding='utf-8');(o/'notifications.inc').write_text(re.sub(r'^#include.*$','',s,flags=re.M),encoding='utf-8')
