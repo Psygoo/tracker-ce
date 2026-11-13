@@ -108,6 +108,9 @@ void cSlicePoints::update()
                 API_COLOR(colors[0]);
             }
 
+#if TRACKER_CE_ENABLE_WR2
+            if(points->wr2Colors!=nullptr)API_COLOR(points->wr2Colors[i]);
+#endif
             // point
             API_BEGIN(LINES);
             API_VERTEX2F(start, posY - (1 + (selected ? selectedDiff : 0)));

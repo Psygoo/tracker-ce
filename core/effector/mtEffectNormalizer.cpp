@@ -1,3 +1,6 @@
+#if TRACKER_CE_ENABLE_SD_EDITS
+#include "sampleProcessing/PcmEffects.h"
+#endif
 #include "mtEffectNormalizer.h"
 #include "util_math.h"
 mtEffectNormalizer sampleEditorNormalizer;
@@ -17,8 +20,12 @@ bool mtEffectNormalizer::startProcess()
         channelParams[channel].srcAddr = confirmed[channel].selection.addr;
         channelParams[channel].dstAddr = processed[channel].selection.addr;
         int max_peak = find_max(channelParams[channel].srcAddr, length);
+#if TRACKER_CE_ENABLE_SD_EDITS
+        channelParams[channel].amp=ce_pcm_normalize_gain(norm_level,max_peak);
+#else
         int norm_peak = map<int>(norm_level, 0, 100, 0, MAX_SIGNED_16BIT);
         channelParams[channel].amp = (float)norm_peak / max_peak;
+#endif
     }
 
     processedSamples = 0;
@@ -38,6 +45,9 @@ int32_t mtEffectNormalizer::processBlock()
     {
         for (uint16_t i = 0; i < processedBlockLength; i++)
         {
+#if TRACKER_CE_ENABLE_SD_EDITS
+            *channelParams[channel].dstAddr=ce_pcm_scale(*channelParams[channel].srcAddr,channelParams[channel].amp);
+#else
             int32_t processVal = channelParams[channel].amp * (*channelParams[channel].srcAddr);
 
             if (processVal > MAX_SIGNED_16BIT)
@@ -46,6 +56,7 @@ int32_t mtEffectNormalizer::processBlock()
                 processVal = MIN_SIGNED_16BIT;
 
             *channelParams[channel].dstAddr = (int16_t)processVal;
+#endif
             channelParams[channel].dstAddr++;
             channelParams[channel].srcAddr++;
         }
@@ -96,3 +107,11 @@ int mtEffectNormalizer::find_max(int16_t* ptr, int len)
 
     return max;
 }
+
+#if TRACKER_CE_ENABLE_SD_EDITS
+bool mtEffectNormalizer::startPreview(const int peaks[2]){
+    if(!startProcess())return false;
+    for(int ch=0;ch<kChannels;++ch)channelParams[ch].amp=ce_pcm_normalize_gain(norm_level,peaks[ch]);
+    return true;
+}
+#endif

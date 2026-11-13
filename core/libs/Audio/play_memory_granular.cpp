@@ -94,6 +94,9 @@ AUDIO_CORE_FLASH void AudioPlayMemory::playGranular(uint8_t instrIdx, int8_t not
     iPitchCounter = reverseDirectionFlag ? constrainsInSamples.endPoint - 1 : 0;
 
     granularPositionRefreshFlag = 0;
+#if TRACKER_CE_ENABLE_WR2
+    wr2ClearActive();
+#endif
     playing = 1;
     //	__enable_irq();
     AudioInterrupts();

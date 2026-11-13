@@ -181,6 +181,19 @@ class cSamplePlayback : public ModuleBase
     elapsedMicros refreshPlayProgressValue = 0;
     float playPitch = 1.0;
     bool sliceScreenMode2;
+#if TRACKER_CE_ENABLE_WR2
+    bool wr2ThirdPage=false;
+    uint8_t wr2TrigPlace=0; // UI-only preference: Slice (0) or Weight (4).
+    bool wr2Notice=false;
+    uint8_t wr2NoticeSlice=255;
+    uint32_t wr2MarkerColors[48]{},wr2TrigColors[4]{};
+    char wr2WeightText[6]{};
+    bool wr2Page()const;
+    bool wr2Button(unsigned,uint8_t);
+    void wr2Refresh();
+    void wr2Finish(bool resetPage=true);
+    void wr2DismissNotice();
+#endif
     int8_t displayedTrack = -1;
 
     strInstrument* editorInstrument = nullptr;

@@ -1,3 +1,5 @@
+include $(dir $(firstword $(MAKEFILE_LIST)))../../sample-editor-options.mk
+-include $(dir $(firstword $(MAKEFILE_LIST)))../../modules/wr2/firmware-option.mk
 # Variables to provide (example values):
 #
 # TOOLCHAIN=/usr/local/bin/arm-none-eabi-

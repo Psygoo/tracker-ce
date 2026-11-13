@@ -1,6 +1,9 @@
 #include "ampLogarythmicValues.h"
 #include "mtAudioEngine.h"
 #include "mtSequencer.h"
+#if TRACKER_CE_ENABLE_WR2
+#include "NativeBridge.h"
+#endif
 #include "polyassert.h"
 
 using namespace mtAudioEngineConstans;
@@ -8,6 +11,8 @@ using namespace mtAudioEngineConstans;
 //********************************** NOTE_ON
 uint8_t playerEngine ::noteOn(uint8_t instr_idx, int8_t note, int8_t _velocity)
 {
+    if (instr_idx >= kSampleInstrumentsCount)
+        return 0;
     if (mtProject.instrument[instr_idx].isActive != 1)
         return 0;
     if (isBlockedNoteOn[instr_idx])
@@ -16,6 +21,9 @@ uint8_t playerEngine ::noteOn(uint8_t instr_idx, int8_t note, int8_t _velocity)
 
     endFx(lastSeqFx[0], 0);
     endFx(lastSeqFx[1], 1);
+#if TRACKER_CE_ENABLE_WR2
+    wr2native::Frame wr2Event(*this,instr_idx,note);
+#endif
 
     //	__disable_irq();
     AudioNoInterrupts();
@@ -81,11 +89,16 @@ AUDIO_CORE_RAM uint8_t playerEngine ::noteOn(uint8_t instr_idx,
                                              uint8_t fx2_id,
                                              uint8_t fx2_val)
 {
+    if (instr_idx >= kSampleInstrumentsCount)
+        return 0;
     if (mtProject.instrument[instr_idx].isActive != 1)
         return 0;
     if (isBlockedNoteOn[instr_idx])
         return 0;
     //	__disable_irq();
+#if TRACKER_CE_ENABLE_WR2
+    wr2native::Frame wr2Event(*this,instr_idx,note,true,fx1_id,fx1_val,fx2_id,fx2_val,velocity);
+#endif
     AudioNoInterrupts();
     uint8_t status;
 
@@ -239,6 +252,9 @@ AUDIO_CORE_RAM void playerEngine::noteOff(int8_t option)
 //************************************* handle noteOff
 AUDIO_CORE_RAM void playerEngine::noteOffFade()
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2native::Frame wr2Cancellation(*this,wr2native::Cancel{});
+#endif
     //	__disable_irq();
     AudioNoInterrupts();
     for (int channel = 0; channel < playMemPtr.size(); channel++)
@@ -265,6 +281,9 @@ AUDIO_CORE_RAM void playerEngine::noteOffFade()
 }
 AUDIO_CORE_RAM void playerEngine::noteOffCut()
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2native::Frame wr2Cancellation(*this,wr2native::Cancel{});
+#endif
     //	__disable_irq();
     AudioNoInterrupts();
     // caly voice i automatyka zabijane
@@ -293,6 +312,9 @@ AUDIO_CORE_RAM void playerEngine::noteOffCut()
 }
 AUDIO_CORE_RAM void playerEngine::noteOffOrdinary()
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2native::Frame wr2Cancellation(*this,wr2native::Cancel{});
+#endif
     //	__disable_irq();
     AudioNoInterrupts();
 

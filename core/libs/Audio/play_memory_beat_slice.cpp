@@ -4,22 +4,33 @@
 
 AUDIO_CORE_FLASH void AudioPlayMemory::playBeatSlice(uint8_t instrIdx, int8_t note)
 {
+    if (instrIdx >= kSampleInstrumentsCount)
+        return;
+    const uint8_t sliceCount = mtProject.instrument[instrIdx].sliceNumber;
+    if (sliceCount > MAX_SLICE_NUMBER)
+        return;
+
     AudioNoInterrupts();
 
-    uint8_t localSlice;
-    FIRST_BEAT_SLICE_NOTE;
+    uint8_t localSlice = 0;
+    if (sliceCount > 0 && note >= FIRST_BEAT_SLICE_NOTE)
+    {
+        const uint8_t requestedSlice = note - FIRST_BEAT_SLICE_NOTE;
+        localSlice = requestedSlice < sliceCount ? requestedSlice : sliceCount - 1;
+    }
+    // Revalidate S2 at the actual start: slices may have been removed since FX setup.
+    const uint8_t requestedForcedSlice = forcedSlice;
+    const uint8_t nativeSlice = (sliceForcedFlag && sliceCount > 0)
+                                 ? (requestedForcedSlice < sliceCount ? requestedForcedSlice : sliceCount - 1)
+                                 : localSlice;
 
-    if (note < FIRST_BEAT_SLICE_NOTE)
-        localSlice = 0;
-    else if (note > (FIRST_BEAT_SLICE_NOTE + mtProject.instrument[instrIdx].sliceNumber - 1))
-        localSlice = mtProject.instrument[instrIdx].sliceNumber - 1;
-    else
-        localSlice = note - FIRST_BEAT_SLICE_NOTE;
+#if TRACKER_CE_ENABLE_WR2
+    const uint8_t activeSlice=wr2Slice(instrIdx,nativeSlice);
+#else
+    const uint8_t activeSlice=nativeSlice;
+#endif
 
     note = 60; // zerowy pitch
-
-    if (instrIdx > kSampleInstrumentsCount - 1)
-        instrIdx = kSampleInstrumentsCount - 1;
 
     lastInstrIdxInPlay = currentInstrIdx;
     currentInstrIdx = instrIdx;
@@ -36,31 +47,18 @@ AUDIO_CORE_FLASH void AudioPlayMemory::playBeatSlice(uint8_t instrIdx, int8_t no
 
     lastNote = note;
 
-    uint16_t startSlice, endSlice;
+    const uint16_t startSlice = sliceCount > 0
+                                  ? mtProject.instrument[instrIdx].slices[activeSlice]
+                                  : 0;
+    const uint16_t endSlice = (!mtProject.instrument[instrIdx].slicePlayThru &&
+                               sliceCount > 1 && activeSlice < sliceCount - 1)
+                                ? mtProject.instrument[instrIdx].slices[activeSlice + 1]
+                                : MAX_16BIT;
 
-    if (sliceForcedFlag)
-    {
-        startSlice = (mtProject.instrument[instrIdx].sliceNumber > 0)
-                       ? mtProject.instrument[instrIdx].slices[forcedSlice]
-                       : 0;
-        endSlice = (!mtProject.instrument[instrIdx].slicePlayThru &&
-                    (mtProject.instrument[instrIdx].sliceNumber > 1) &&
-                    ((mtProject.instrument[instrIdx].sliceNumber - 1) != forcedSlice))
-                     ? mtProject.instrument[instrIdx].slices[forcedSlice + 1]
-                     : MAX_16BIT;
-    }
+#if TRACKER_CE_ENABLE_WR2
+    if (wr2Prepared(instrIdx,startSlice,endSlice)) {}
     else
-    {
-        startSlice = (mtProject.instrument[instrIdx].sliceNumber > 0)
-                       ? mtProject.instrument[instrIdx].slices[localSlice]
-                       : 0;
-        endSlice = (!mtProject.instrument[instrIdx].slicePlayThru &&
-                    (mtProject.instrument[instrIdx].sliceNumber > 1) &&
-                    ((mtProject.instrument[instrIdx].sliceNumber - 1) != localSlice))
-                     ? mtProject.instrument[instrIdx].slices[localSlice + 1]
-                     : MAX_16BIT;
-    }
-
+#endif
     if (samplePointsSource != nullptr)
     {
         pointsInSamples.start = samplePointsSource->pointsInSamples.start;
@@ -85,9 +83,8 @@ AUDIO_CORE_FLASH void AudioPlayMemory::playBeatSlice(uint8_t instrIdx, int8_t no
 
     if (currentIsStreamed)
     {
-        if (!reverseDirectionFlag && mtProject.instrument[instrIdx].sliceNumber > 0)
+        if (!reverseDirectionFlag && sliceCount > 0)
         {
-            uint8_t activeSlice = sliceForcedFlag ? forcedSlice : localSlice;
             voiceStreamManager.getSlicePreCache(instrIdx,
                                                 activeSlice,
                                                 channel,
@@ -110,6 +107,9 @@ AUDIO_CORE_FLASH void AudioPlayMemory::playBeatSlice(uint8_t instrIdx, int8_t no
         }
     }
 
+#if TRACKER_CE_ENABLE_WR2
+    wr2Commit(instrIdx);
+#endif
     playing = 1;
     AudioInterrupts();
 }

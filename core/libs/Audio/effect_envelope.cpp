@@ -261,6 +261,9 @@ AUDIO_CORE_FLASH void AudioPlayMemory::envelopeRelease(float milliseconds)
 
 AUDIO_CORE_FLASH void AudioPlayMemory::envelopeNoteOn(uint8_t instr_idx, int8_t note)
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2Queue(instr_idx,note);
+#endif
     //	__disable_irq();
     AudioNoInterrupts();
     envelope.pressedFlag = 1;
@@ -298,6 +301,9 @@ AUDIO_CORE_FLASH void AudioPlayMemory::envelopeNoteOn(uint8_t instr_idx, int8_t 
 
 AUDIO_CORE_FLASH void AudioPlayMemory::envelopeNoteOnForPrev(uint8_t instr_idx, int8_t note)
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2Cancel();
+#endif
     //	__disable_irq();
     AudioNoInterrupts();
     envelope.pressedFlag = 1;
@@ -374,6 +380,9 @@ AUDIO_CORE_FLASH void AudioPlayMemory::envelopeNoteOnForPrev(int16_t* addr,
 
 AUDIO_CORE_FLASH void AudioPlayMemory::envelopeNoteOff(void)
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2Cancel();
+#endif
     AudioNoInterrupts();
 
     envelope.pressedFlag = 0;

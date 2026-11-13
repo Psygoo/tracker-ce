@@ -185,6 +185,16 @@ void AudioPlayMemory::init(Timer* timer, int channel, int voiceIdx)
 //**************************************************************************************PLAY
 AUDIO_CORE_FLASH uint8_t AudioPlayMemory::play(uint8_t instrIdx, int8_t note)
 {
+    if (instrIdx >= kSampleInstrumentsCount)
+        return 0;
+    if (mtProject.instrument[instrIdx].playMode == playModeBeatSlice &&
+        mtProject.instrument[instrIdx].sliceNumber > MAX_SLICE_NUMBER)
+        return 0;
+
+#if TRACKER_CE_ENABLE_WR2
+    if (mtProject.instrument[instrIdx].playMode != playModeBeatSlice) wr2ClearActive();
+    wr2native::Frame wr2Playback(*this,instrIdx,note);
+#endif
     switch (mtProject.instrument[instrIdx].playMode)
     {
         case playModeSingleShot: playSingleShot(instrIdx, note); break;
@@ -217,6 +227,9 @@ AUDIO_CORE_FLASH void AudioPlayMemory::setSlideOnPlay(bool upOrDown, uint8_t dst
 
 uint8_t AudioPlayMemory::playForPrev(uint8_t instr_idx, int8_t n)
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2Cancel();
+#endif
     tuneForceFlag = 0;
     pointsForceFlag = 0;
     glideForceFlag = 0;
@@ -342,6 +355,9 @@ uint8_t AudioPlayMemory::playForPrev(int16_t* addr, uint32_t len, uint8_t type)
         length = currentSampleLength;
     }
 
+    #if TRACKER_CE_ENABLE_WR2
+    wr2ClearActive();
+    #endif
     playing = 1;
 
     return successInit;
@@ -456,6 +472,9 @@ uint8_t AudioPlayMemory::playForPrev(int16_t* addr, uint32_t len, uint8_t n, uin
         length = currentSampleLength;
     }
 
+    #if TRACKER_CE_ENABLE_WR2
+    wr2ClearActive();
+    #endif
     playing = 1;
 
     return successInit;
@@ -1050,12 +1069,17 @@ uint32_t AudioPlayMemory::getLengthIfPlaying()
 
 void AudioPlayMemory::setForcedSlice(uint8_t value)
 {
-    if (mtProject.instrument[currentInstrIdx].sliceNumber == 0)
+    const uint8_t instrIdx = currentInstrIdx;
+    if (instrIdx >= kSampleInstrumentsCount)
+    {
         forcedSlice = 0;
-    else if (value > mtProject.instrument[currentInstrIdx].sliceNumber - 1)
-        forcedSlice = mtProject.instrument[currentInstrIdx].sliceNumber - 1;
+        return;
+    }
+    const uint8_t sliceCount = mtProject.instrument[instrIdx].sliceNumber;
+    if (sliceCount == 0 || sliceCount > MAX_SLICE_NUMBER)
+        forcedSlice = 0;
     else
-        forcedSlice = value;
+        forcedSlice = value < sliceCount ? value : sliceCount - 1;
 }
 void AudioPlayMemory::setSliceForcedFlag()
 {

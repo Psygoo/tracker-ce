@@ -266,6 +266,9 @@ class playerEngine
 {
   public:
     playerEngine();
+#if TRACKER_CE_ENABLE_WR2
+    friend class wr2native::Frame;
+#endif
 
     static bool isZeroInPointZone(uint16_t position, uint32_t sampleLength, int16_t* sampleAddress);
     void init(Timer* timer,

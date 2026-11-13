@@ -18,7 +18,16 @@ class cMtPadsBacklight
     void setBackLayer(uint8_t state, uint8_t gamma_pwm, uint8_t n);
     void clearGlobalPads(uint8_t front, uint8_t back, uint8_t blink);
 
+#if TRACKER_CE_ENABLE_WR2
+    void setWr2Overlay(const uint8_t* levels);
+    void clearWr2Overlay();
+#endif
   private:
+#if TRACKER_CE_ENABLE_WR2
+    bool wr2OverlayOn=false;
+    uint8_t wr2Levels[48]{};
+    void sendLed(uint8_t n,uint8_t state,uint8_t level);
+#endif
     elapsedMillis blinkTimer;
     uint8_t frontLayer[48];
     uint8_t backLayer[48];

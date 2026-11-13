@@ -1,3 +1,6 @@
+#if TRACKER_CE_ENABLE_WR2
+#include "NativePersistence.h"
+#endif
 #include "ProjectSave.h"
 
 #include "VoiceStreamManager.h"
@@ -23,6 +26,9 @@ void ProjectSave::update()
         case ProjectSaveStep::initStep:
         {
             saveProjectInit();
+#if TRACKER_CE_ENABLE_WR2
+            if(!wr2persist::saveReady())return;
+#endif
             nextStep = ProjectSaveStep::copyProjectFile;
             break;
         }
@@ -121,6 +127,9 @@ void ProjectSave::saveProjectInit()
         return;
     }
 
+#if TRACKER_CE_ENABLE_WR2
+    if(!wr2persist::beginSave()){mtProject.values.projectNotSavedFlag |= 1;operationError();return;}
+#endif
     char projectSavePath[PATCH_SIZE];
     volatile int pathSize = sizeof(projectSavePath);
     snprintf(projectSavePath,
@@ -544,6 +553,9 @@ void ProjectSave::saveProjectFinish()
 
     //-----------------------------------
 
+#if TRACKER_CE_ENABLE_WR2
+    if(!wr2persist::finishSave()){mtProject.values.projectNotSavedFlag|=1;operationError();return;}
+#endif
     mtProject.values.projectNotSavedFlag = 0;
 
     newFileManager.setStatus(fmSaveEnd);

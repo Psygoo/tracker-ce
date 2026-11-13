@@ -1,6 +1,9 @@
 #include "mtPadsBacklight.h"
 #include "Platform.h"
 
+#if !TRACKER_CE_ENABLE_WR2
+#define sendLed(n,state,level) leds->setLed(n,state,level)
+#endif
 cMtPadsBacklight padsBacklight;
 
 void cMtPadsBacklight::init(uint16_t blink, Leds* leds)
@@ -36,15 +39,15 @@ void cMtPadsBacklight::setBackLayer(uint8_t state, uint8_t gamma_pwm, uint8_t n)
 {
     if (state)
     {
-        leds->setLed(n, state, (gamma_pwm > frontLayer[n] ? gamma_pwm : frontLayer[n]));
+        sendLed(n, state, (gamma_pwm > frontLayer[n] ? gamma_pwm : frontLayer[n]));
         backLayer[n] = gamma_pwm;
     }
     else
     {
         if (frontLayer[n] != 0)
-            leds->setLed(n, 1, frontLayer[n]);
+            sendLed(n, 1, frontLayer[n]);
         else
-            leds->setLed(n, state, gamma_pwm);
+            sendLed(n, state, gamma_pwm);
 
         backLayer[n] = 0;
     }
@@ -54,15 +57,15 @@ void cMtPadsBacklight::setFrontLayer(uint8_t state, uint8_t gamma_pwm, uint8_t n
 {
     if (state)
     {
-        leds->setLed(n, state, (gamma_pwm > backLayer[n] ? gamma_pwm : backLayer[n]));
+        sendLed(n, state, (gamma_pwm > backLayer[n] ? gamma_pwm : backLayer[n]));
         frontLayer[n] = gamma_pwm;
     }
     else
     {
         if (backLayer[n] != 0)
-            leds->setLed(n, 1, backLayer[n]);
+            sendLed(n, 1, backLayer[n]);
         else
-            leds->setLed(n, state, gamma_pwm);
+            sendLed(n, state, gamma_pwm);
 
         frontLayer[n] = 0;
     }
@@ -108,3 +111,21 @@ void cMtPadsBacklight::clearGlobalPads(uint8_t front, uint8_t back, uint8_t blin
         }
     }
 }
+
+#if TRACKER_CE_ENABLE_WR2
+void cMtPadsBacklight::sendLed(uint8_t n,uint8_t state,uint8_t level){
+    if(!wr2OverlayOn)leds->setLed(n,state,level);
+}
+void cMtPadsBacklight::setWr2Overlay(const uint8_t*levels){
+    for(uint8_t i=0;i<48;++i){
+        if(!wr2OverlayOn||wr2Levels[i]!=levels[i])leds->setLed(i,levels[i]!=0,levels[i]);
+        wr2Levels[i]=levels[i];
+    }
+    wr2OverlayOn=true;
+}
+void cMtPadsBacklight::clearWr2Overlay(){
+    if(!wr2OverlayOn)return;
+    wr2OverlayOn=false;
+    for(uint8_t i=0;i<48;++i){auto level=frontLayer[i]>backLayer[i]?frontLayer[i]:backLayer[i];leds->setLed(i,level!=0,level);}
+}
+#endif

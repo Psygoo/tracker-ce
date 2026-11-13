@@ -1,3 +1,7 @@
+#if TRACKER_CE_ENABLE_WR2
+#include "NativeBridge.h"
+#include "NativePersistence.h"
+#endif
 #include "SampleImport.h"
 #include "AudioDataUtilities.h"
 #include "Platform.h"
@@ -25,6 +29,14 @@ void SampleImport::update() // fmImportSamplesToWorkspace
     {
         case SampleImportStep::initStep:
         {
+#if TRACKER_CE_ENABLE_WR2
+            for(int idx=importExplorerSlotFrom;idx<=importExplorerSlotTo;++idx){
+                if(newFileManager.isFilePtiInstrument(newFileManager.getExplorerList()[idx])&&
+                   !wr2persist::markInstrumentReplacement(importStartSlot+idx-importExplorerSlotFrom)){
+                    stopOperationWithError(fmImportSamplesError);return;
+                }
+            }
+#endif
             importSamplesToWorkspaceInit();
             memset(sampleImportDataBuff, 0, sizeof(sampleImportDataBuff));
             loadImportingSamplesData(sampleImportDataBuff,
@@ -76,6 +88,11 @@ void SampleImport::update() // fmImportSamplesToWorkspace
                 : newFileManager.saveSampleDataToWorkspace(currentInstrument);
             if (result)
             {
+#if TRACKER_CE_ENABLE_WR2
+                if(sampleImportDataBuff[currentInstrument].ptiFile)
+                    wr2persist::importInstrument(currentInstrument,sampleImportDataBuff[currentInstrument].filePath,sampleImportDataBuff[currentInstrument].fileName);
+                else wr2native::sampleChanged(currentInstrument);
+#endif
                 engine.clearBlockedInstrument(currentInstrument);
                 if (currentInstrument < importEndSlot &&
                     currentInstrument < kSampleInstrumentsCount - 1)

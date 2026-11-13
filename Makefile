@@ -1,6 +1,8 @@
 # Polyend Tracker Community Edition (CE) - Top-Level Monorepo Makefile
 
 ROOT_DIR      := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+include $(dir $(firstword $(MAKEFILE_LIST)))sample-editor-options.mk
+-include $(dir $(firstword $(MAKEFILE_LIST)))modules/wr2/firmware-option.mk
 ifneq ($(wildcard $(ROOT_DIR)/agt/10.3/bin/arm-none-eabi-gcc),)
   TOOLCHAIN   ?= $(ROOT_DIR)/agt/10.3/bin/arm-none-eabi-
 else
@@ -51,7 +53,7 @@ plus:
 	@echo "=================================================================="
 	@echo " Building Tracker+ (IMX) - $(EDITION_NAME) $(PLUS_VER_MAJOR).$(PLUS_VER_MINOR).$(PLUS_VER_PATCH) ($(BUILD_TAG))"
 	@echo "=================================================================="
-	@rm -f "$(IMX_DIR)/build-PLUS/obj/source/PlatformImpl.o"
+	@rm -f "$(IMX_DIR)/build-PLUS$(FIRMWARE_BUILD_SUFFIX)/obj/source/PlatformImpl.o"
 	$(MAKE) -C "$(CORE_DIR)" -j$(NPROC) build \
 		TOOLCHAIN="$(TOOLCHAIN)" \
 		PLATFORM=IMX PRODUCT=PLUS \
@@ -66,7 +68,7 @@ plus:
 		TARGET_POSTFIX="$(PLUS_POSTFIX)" \
 		BUILD_ID_STR="$(BUILD_ID_STR)"
 	@mkdir -p "$(OUT_DIR)"
-	@cp "$(IMX_DIR)/build-PLUS/TrackerPlus_$(PLUS_POSTFIX).ptf" "$(OUT_DIR)/"
+	@cp "$(IMX_DIR)/build-PLUS$(FIRMWARE_BUILD_SUFFIX)/TrackerPlus_$(PLUS_POSTFIX).ptf" "$(OUT_DIR)/"
 	@echo "-> Output: $(OUT_DIR)/TrackerPlus_$(PLUS_POSTFIX).ptf"
 
 mini:

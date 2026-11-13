@@ -1,3 +1,7 @@
+#if TRACKER_CE_ENABLE_WR2
+#include "NativeUi.h"
+#include "NativePersistence.h"
+#endif
 #include "InstrumentCopy.h"
 
 #include "VoiceStreamManager.h"
@@ -106,6 +110,9 @@ void InstrumentCopy::copyInstrumentInit()
         oldSamplesSize = newFileManager.getSampleMemorySize(copyDestSlot, copyDestSlot); // TODO
     }
 
+#if TRACKER_CE_ENABLE_WR2
+    wr2ui::invalidate(&mtProject.instrument[copyDestSlot]);
+#endif
     mtProject.instrument[copyDestSlot] = mtProject.instrument[copySrcSlot]; // TODO
 
     bool srcStereo = newFileManager.isInstrumentStereo(copySrcSlot);
@@ -178,6 +185,9 @@ bool InstrumentCopy::copyInstruments(int srcIdx, int destIdx, uint8_t& copyState
 
 void InstrumentCopy::copyInstrumentFinish()
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2persist::copyInstrument(copySrcSlot,copyDestSlot);
+#endif
     newFileManager.setStatus(fmCopyingInstrumentsEnd);
     newFileManager.setCurrentOperation(fmNoOperation);
 }
@@ -199,6 +209,9 @@ bool InstrumentCopy::copyInstrumentsInWorkspace(uint8_t copyInstrSrc,
     if (copyInstrSrc == copyInstrDest)
         return false;
 
+#if TRACKER_CE_ENABLE_WR2
+    if(!wr2persist::markInstrumentReplacement(copyInstrDest))return false;
+#endif
     copySrcSlot = copyInstrSrc;
     copyDestSlot = copyInstrDest;
     copySlotsCount = copyInstrCount;

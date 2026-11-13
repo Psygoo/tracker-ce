@@ -1,3 +1,6 @@
+#if TRACKER_CE_ENABLE_WR2
+#include "NativeUi.h"
+#endif
 #include "mtSequencer.h"
 #include "mtStructs.h"
 
@@ -756,6 +759,10 @@ bool cFileManager::loadInstrumentFormFileStruct(strInstrument* instrument,
 
     instrumentFileDataOffsetOut = validation.dataOffset;
 
+#if TRACKER_CE_ENABLE_WR2
+    // Workspace reload restores the same instrument context, not a PTI import.
+    if(getCurrentOperation()!=fmReloadSamples)wr2ui::invalidate(instrument);
+#endif
     memcpy(instrument, &instrumentFile->instrumentDataAndHeader.instrument, sizeof(strInstrument));
 
     // The slice table and everything sized after it have MAX_SLICE_NUMBER entries, and the
@@ -828,6 +835,9 @@ uint8_t cFileManager::calcFirstSlotToMoveInMemory(uint8_t calcStartSlot)
 
 void cFileManager::getEmptyInstrument(struct strInstrument* source)
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2ui::invalidate(source);
+#endif
     memset((uint8_t*)source, 0, sizeof(strInstrument));
 
     source->sample.wavetable_window_size = 2048;
@@ -835,6 +845,9 @@ void cFileManager::getEmptyInstrument(struct strInstrument* source)
 
 void cFileManager::setDefaultActiveInstrument(struct strInstrument* targetInstrument)
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2ui::invalidate(targetInstrument);
+#endif
     memset((uint8_t*)targetInstrument, 0, sizeof(strInstrument));
 
     targetInstrument->isActive = 1;

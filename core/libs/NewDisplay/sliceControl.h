@@ -10,6 +10,9 @@ struct strSlicePoints
     int16_t slice[MAX_SLICE_NUMBER] = { 0 };
     bool isSliceZerocrossed[MAX_SLICE_NUMBER];
     uint8_t selected = 0;
+#if TRACKER_CE_ENABLE_WR2
+    const uint32_t* wr2Colors=nullptr;
+#endif
 };
 
 //--------------------------------------------------------------------

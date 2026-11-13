@@ -1,3 +1,6 @@
+#if TRACKER_CE_ENABLE_SD_EDITS
+#include "sampleProcessing/NativeDrive.h"
+#endif
 #include "mtEffectBitcrusher.h"
 #include "mtStructs.h"
 #include <cstring>
@@ -57,6 +60,11 @@ int32_t mtEffectBitcrusher::processBlock()
         int16_t* dst = channelParams[channel].dstAddr;
         const int16_t* src = channelParams[channel].srcAddr;
 
+#if TRACKER_CE_ENABLE_SD_EDITS
+        sampleedit::CrushState hold;
+        for (uint32_t i = 0; i < processedBlockLength; ++i)
+            *dst++ = sampleedit::crushSample(*src++, crushBits, sampleStep, processedSamples + i, hold);
+#else
         if (crushBits == 16 && sampleStep <= 1)
         {
             memcpy(dst, src, processedBlockLength * sizeof(int16_t));
@@ -95,6 +103,7 @@ int32_t mtEffectBitcrusher::processBlock()
             }
         }
 
+#endif
         channelParams[channel].dstAddr = dst;
         channelParams[channel].srcAddr = const_cast<int16_t*>(src);
     }

@@ -33,6 +33,11 @@ class mtEffectEQ : public mtEffect
     virtual bool getProcessState() override;
     virtual uint32_t getExpectedProcessLength() override;
 
+#if TRACKER_CE_ENABLE_SD_EDITS
+    // Foreground-only, continuous per-channel DSP; startProcess initializes once.
+    void processSdChannel(unsigned channel, int16_t* input, int16_t* output, unsigned count);
+#endif
+
   private:
     float calculateBandwidth(float freq, float q);
     struct EqContext

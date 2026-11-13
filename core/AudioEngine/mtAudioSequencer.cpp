@@ -2,6 +2,9 @@
 #include "mtAudioEngine.h"
 #include "mtWavetableEnvelopes.h"
 #include "mtSequencer.h"
+#if TRACKER_CE_ENABLE_WR2
+#include "NativeBridge.h"
+#endif
 #include "tempoSyncRateValues.h"
 
 using namespace mtAudioEngineConstans;
@@ -843,6 +846,12 @@ void playerEngine::fxVolume(uint8_t fx_val, uint8_t fx_n)
 
 void playerEngine::fxSampleSlice(uint8_t fx_val, uint8_t fx_n)
 {
+    if (fx_n > LEAST_SIGNIFICANT_FX || currentInstrument_idx >= kSampleInstrumentsCount)
+        return;
+    const uint8_t sliceCount = mtProject.instrument[currentInstrument_idx].sliceNumber;
+    if (sliceCount > MAX_SLICE_NUMBER)
+        return;
+
     trackControlParameter[(int)controlType::sequencerMode + fx_n][(int)parameterList::slice] = 1;
 
     uint8_t otherFx_n = !fx_n;
@@ -850,7 +859,7 @@ void playerEngine::fxSampleSlice(uint8_t fx_val, uint8_t fx_n)
     if (fx_n == MOST_SIGNIFICANT_FX)
     {
         currentSeqModValues.slice =
-          fx_val % (mtProject.instrument[currentInstrument_idx].sliceNumber);
+          sliceCount > 0 ? fx_val % sliceCount : 0;
     }
     else if (fx_n == LEAST_SIGNIFICANT_FX)
     {
@@ -858,7 +867,7 @@ void playerEngine::fxSampleSlice(uint8_t fx_val, uint8_t fx_n)
                                   [(int)parameterList::slice])
         {
             currentSeqModValues.slice =
-              fx_val % (mtProject.instrument[currentInstrument_idx].sliceNumber);
+              sliceCount > 0 ? fx_val % sliceCount : 0;
         }
     }
 
@@ -1678,6 +1687,12 @@ void playerEngine::endFxVolume(uint8_t fx_n)
 
 void playerEngine::endFxSlice(uint8_t fx_n)
 {
+    if (fx_n > LEAST_SIGNIFICANT_FX || currentInstrument_idx >= kSampleInstrumentsCount)
+        return;
+    const uint8_t sliceCount = mtProject.instrument[currentInstrument_idx].sliceNumber;
+    if (sliceCount > MAX_SLICE_NUMBER)
+        return;
+
     uint8_t otherFx_n = !fx_n;
 
     trackControlParameter[(int)controlType::sequencerMode + fx_n][(int)parameterList::slice] = 0;
@@ -1688,7 +1703,7 @@ void playerEngine::endFxSlice(uint8_t fx_n)
                                  [(int)parameterList::slice])
         {
             currentSeqModValues.slice =
-              lastSeqVal[otherFx_n] % mtProject.instrument[currentInstrument_idx].sliceNumber;
+              sliceCount > 0 ? lastSeqVal[otherFx_n] % sliceCount : 0;
         }
     }
 
@@ -2836,6 +2851,9 @@ void playerEngine::clearFxAmpRateLFO()
 
 void playerEngine::syncFxAmpLFO()
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2native::Frame wr2Technical(*this);
+#endif
     for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
     {
         playMemPtr[channel]->envelopeNoteOff();

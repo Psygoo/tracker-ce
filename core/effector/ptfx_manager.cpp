@@ -9,6 +9,7 @@
 #include <cstring>
 #include <strings.h>
 
+static_assert(kBuiltInEffectsCount==editorEffectModular,"Sample Editor list and registry must agree");
 extern uint8_t externalRamScratchBuff[];
 
 __NOINIT(EXTERNAL_RAM) static PtfxEntry s_ptfxEntries[kMaxModularPlugins];
@@ -18,6 +19,11 @@ __NOINIT(EXTERNAL_RAM) char* PtfxManager::s_effectDisplayNames[kBuiltInEffectsCo
 uint16_t PtfxManager::s_pluginCount = 0;
 bool PtfxManager::s_scanned = false;
 
+#if TRACKER_CE_ENABLE_SD_MONO
+static bool bundledMono(const PtfxHeader&header,const char*filename){
+ return (header.flags&PTFX_FLAG_CONVERT_TO_MONO)&&(!strcasecmp(header.display_name,"Stereo to Mono")||!strcasecmp(filename,"stereo_to_mono.ptfx"));
+}
+#endif
 static PtfxEntry* getPluginEntry(uint16_t index)
 {
     if (index >= kMaxModularPlugins)
@@ -88,6 +94,9 @@ void PtfxManager::scanEffects(bool force)
         PtfxHeader tempHeader;
         if (PtfxLoader::readHeader(filepath, tempHeader))
         {
+#if TRACKER_CE_ENABLE_SD_MONO
+            if(bundledMono(tempHeader,scanFileList[i]))continue;
+#endif
 #ifndef PLATFORM_IMX
             if (tempHeader.flags & PTFX_FLAG_IMX_ONLY)
                 continue;

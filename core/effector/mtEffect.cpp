@@ -547,3 +547,25 @@ uint8_t mtEffect::getProgress(ProcessingParams* ptr)
 }
 
 //***********
+
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+void mtEffect::discardForFileOperation(){
+    operationType=OperationType::operationTypeIdle;
+    loadingParams.processingParams.state=false;loadingParams.isAnyOtherProcessingOnFinish=false;
+    processing.processParams.state=false;processing.isLoadedData=false;processing.isApplyOnEnd=false;
+    applyParams.isProcessedData=false;undoParams.isEnable=false;
+    for(auto copier:dataCopyier)copier->cancel();
+}
+#endif
+
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+void mtEffect::bindPreviewBuffers(int16_t* const input[2],int16_t* const output[2],uint32_t frames){
+    for(int ch=0;ch<kChannels;++ch){confirmed[ch]={{input[ch],frames},{input[ch],frames}};processed[ch]={{output[ch],frames},{output[ch],frames}};}
+}
+#endif
+
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+bool mtEffect::hasPreviewWorkspaceConflict() const{
+ return undoParams.isEnable||processing.isLoadedData||loadingParams.processingParams.state||processing.processParams.state;
+}
+#endif

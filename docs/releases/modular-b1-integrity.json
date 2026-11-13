@@ -1,0 +1,10 @@
+{
+  "firmware_source_files_checked": 5357,
+  "source_blob_manifest_sha256": "cd00abcb9e45260129aa31df752ddb6d839b27396162e2cb76b437b5df8dc845",
+  "firmware_sources_identical_to_validated_snapshot": true,
+  "ptf_name": "TrackerPlus_MOD_B1.ptf",
+  "ptf_bytes": 4938378,
+  "ptf_sha256": "6b701276daf34d425d1e553679171e955458b10c04efda815ecd546dcfadbd47",
+  "official_base": "dbfa648b92e4033a2d5308459bbe05bc92b78ec5",
+  "hardware_validation": "MODB1 Tracker+ physical testing confirmed by maintainer"
+}

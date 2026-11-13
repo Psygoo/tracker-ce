@@ -1,3 +1,6 @@
+#if TRACKER_CE_ENABLE_WR2
+#include "NativePersistence.h"
+#endif
 #include "Platform.h"
 #include "fileManagerDefs.h"
 #include "log.h"
@@ -433,6 +436,9 @@ void cFileManager::moveToPrevOperationStep()
 
 void cFileManager::stopOperationWithError(uint8_t error)
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2persist::abort();
+#endif
 #ifdef FILEMANAGER_DEBUGLOG
     LOGF("File manager error (%d)(%d)(%d)", currentOperation, currentOperationStep, error);
 

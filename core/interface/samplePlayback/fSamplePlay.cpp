@@ -1,3 +1,6 @@
+#if TRACKER_CE_ENABLE_WR2
+#include "NativeUi.h"
+#endif
 #include "core/interfaceMenuPopup.h"
 #include "core/interfacePopups.h"
 #include "instrumentEditor/instrumentEditor.h"
@@ -87,6 +90,9 @@ constexpr uint32_t PLAY_REFRESH_US = 5000;
 
 void cSamplePlayback::update()
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(wr2ThirdPage)wr2Refresh();
+#endif
     refreshLiveParams();
 
     // A MIDI or synth instrument has no waveform; the request waits for a sample instrument.
@@ -179,6 +185,9 @@ void cSamplePlayback::update()
 
 void cSamplePlayback::start(uint32_t options)
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2Finish(false);
+#endif
     (void)options;
     moduleRefresh = 1;
 
@@ -192,6 +201,9 @@ void cSamplePlayback::start(uint32_t options)
               mtProject.instrument[mtProject.values.lastUsedInstrument].playMode)
         {
             sliceScreenMode2 = false;
+#if TRACKER_CE_ENABLE_WR2
+            wr2ThirdPage = false;
+#endif
             SP->cancelMultiFrame();
             SP->clearAllNodes();
             SP->selectedPlace = 6;
@@ -329,6 +341,9 @@ void cSamplePlayback::start(uint32_t options)
 
 void cSamplePlayback::stop()
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2Finish(false);
+#endif
     mtPopups.hideInfoPopup();
 
     if (mtPopups.isNoteKeyboardPopupActive())
@@ -623,6 +638,9 @@ void cSamplePlayback::noteOffHandle(uint8_t channel, uint8_t note, uint8_t veloc
 
 void cSamplePlayback::lightUpPadBoard()
 {
+#if TRACKER_CE_ENABLE_WR2
+    struct Refresh{cSamplePlayback*p;~Refresh(){p->wr2Refresh();}} refresh{this};
+#endif
     padsBacklight.clearGlobalPads(0, 1, 1);
 
     if (mtProject.values.lastUsedInstrument >= kSampleInstrumentsCount)
@@ -689,6 +707,9 @@ static void functPads(uint8_t pad, uint8_t state, int16_t velo)
 
     if (state == buttonPress)
     {
+#if TRACKER_CE_ENABLE_WR2
+        if(SP->wr2Page())SP->wr2DismissNotice();
+#endif
         padsBacklight.setFrontLayer(1, mtConfig.values.padsLightFront, pad);
 
         uint8_t noteFromPad = mtPadBoard.getNoteFromPad(pad, isBeatSlice);
@@ -714,6 +735,9 @@ static void functPads(uint8_t pad, uint8_t state, int16_t velo)
 
 static void functButton0(uint8_t state)
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Button(0,state))return;
+#endif
     if ((SP->editorInstrument->playMode == playModeBeatSlice) ||
         (SP->editorInstrument->playMode == playModeSlice))
     {
@@ -744,6 +768,9 @@ static void functButton0(uint8_t state)
 
 static void functButton1(uint8_t state)
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Button(1,state))return;
+#endif
     if ((state > buttonPress) && (state != UINT8_MAX))
     {
         return;
@@ -832,6 +859,9 @@ static void functButton1(uint8_t state)
 
 static void functButton2(uint8_t state)
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Button(2,state))return;
+#endif
     if ((state > buttonPress) && (state != UINT8_MAX))
     {
         return;
@@ -927,6 +957,9 @@ static void functButton2(uint8_t state)
 
 static void functButton3(uint8_t state)
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Button(3,state))return;
+#endif
     if ((state > buttonPress) && (state != UINT8_MAX))
     {
         return;
@@ -1027,6 +1060,9 @@ static void functButton3(uint8_t state)
 
 static void functButton4(uint8_t state)
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Button(4,state))return;
+#endif
     if ((state > buttonPress) && (state != UINT8_MAX))
     {
         return;
@@ -1122,6 +1158,14 @@ static void functButton4(uint8_t state)
 
 static void functButton5()
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->editorInstrument->playMode==playModeBeatSlice){
+        if(SP->wr2ThirdPage){SP->wr2Finish();SP->sliceScreenMode2=false;}
+        else if(SP->sliceScreenMode2){SP->wr2ThirdPage=true;SP->sliceScreenMode2=false;}
+        else SP->sliceScreenMode2=true;
+        SP->selectedPlace=0;SP->showDefaultScreen();SP->lightUpPadBoard();return;
+    }
+#endif
     if (SP->editorInstrument->playMode == playModeWavetable)
     {
         return;
@@ -1183,6 +1227,16 @@ static void functPlayMode(uint8_t button)
 
 static void functEncoder(int16_t value)
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Page()){
+        SP->wr2DismissNotice();
+        SP->wr2Refresh();
+        if(SP->selectedPlace==4)wr2ui::editor().weight(SP->editorInstrument->selectedSlice,value);
+        else if(SP->selectedPlace==6){changePlayModeSelection(interfaceGlobals.invertValForList?-value:value);return;}
+        else modSliceSelect(value);
+        SP->wr2Refresh();return;
+    }
+#endif
     if (SP->frameData.multiSelActiveNum != 0)
     {
         SP->stepThroughNodes(value);
@@ -1291,6 +1345,9 @@ static void functEncoder(int16_t value)
 
 static void functLeft()
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Page()){SP->wr2Button(0,buttonPress);return;}
+#endif
     if (SP->frameData.multiSelActiveNum != 0)
     {
         return;
@@ -1419,6 +1476,9 @@ static void functLeft()
 
 static void functRight()
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Page()){SP->wr2Button(4,buttonPress);return;}
+#endif
     if (SP->frameData.multiSelActiveNum != 0)
     {
         return;
@@ -1532,6 +1592,9 @@ static void functRight()
 
 static void functUp()
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Page()){functEncoder(1);return;}
+#endif
     if (SP->frameData.multiSelActiveNum != 0)
     {
         SP->stepThroughNodes(1);
@@ -1634,6 +1697,9 @@ static void functUp()
 
 static void functDown()
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Page()){functEncoder(-1);return;}
+#endif
     if (SP->frameData.multiSelActiveNum != 0)
     {
         SP->stepThroughNodes(-1);
@@ -1784,6 +1850,9 @@ static void changeZoom(int16_t value)
 
 static void changePlayModeSelection(int16_t value)
 {
+#if TRACKER_CE_ENABLE_WR2
+    SP->wr2Finish();
+#endif
     if (SP->isPlayingSample)
     {
         mtPadBoard.cutAllInstrument();
@@ -3072,6 +3141,9 @@ static void functInstrument(uint8_t state)
 
 static void functInsert()
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Button(2,buttonPress))return;
+#endif
     if (SP->editorInstrument->playMode == playModeSlice ||
         SP->editorInstrument->playMode == playModeBeatSlice)
 
@@ -3104,6 +3176,9 @@ static void functShift(uint8_t state)
 
 static void functDelete()
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(SP->wr2Button(3,buttonPress))return;
+#endif
     if (SP->editorInstrument->playMode == playModeSlice ||
         SP->editorInstrument->playMode == playModeBeatSlice)
 
@@ -3431,3 +3506,73 @@ static void functMenu(uint8_t state)
         mtMenuPopup.hideModulePopup(SP);
     }
 }
+
+#if TRACKER_CE_ENABLE_WR2
+// Native Sample Playback page 3. All operations run in foreground.
+bool cSamplePlayback::wr2Page()const{
+    return moduleRefresh&&wr2ThirdPage&&editorInstrument&&
+        mtProject.values.lastUsedInstrument<kSampleInstrumentsCount&&
+        editorInstrument==&mtProject.instrument[mtProject.values.lastUsedInstrument]&&
+        editorInstrument->isActive&&editorInstrument->playMode==playModeBeatSlice;
+}
+void cSamplePlayback::wr2DismissNotice(){
+    if(wr2Notice){mtPopups.hideInfoPopup();wr2Notice=false;}
+}
+void cSamplePlayback::wr2Finish(bool resetPage){
+    wr2DismissNotice();
+    wr2ui::editor().finish();
+    if(resetPage)wr2ThirdPage=false;
+    slicePoints.wr2Colors=nullptr;padsBacklight.clearWr2Overlay();
+}
+void cSamplePlayback::wr2Refresh(){
+    const bool page=wr2Page();
+    auto&edit=wr2ui::editor();
+    edit.bind(mtProject.values.lastUsedInstrument,editorInstrument?editorInstrument->sliceNumber:0,page);
+    if(page&&!edit.editing()&&selectedPlace==4){selectedPlace=0;activateLabelsBorder();}
+    if(edit.editing()&&(selectedPlace==0||selectedPlace==4))wr2TrigPlace=static_cast<uint8_t>(selectedPlace);
+    if(wr2Notice&&(!page||(editorInstrument->selectedSlice!=wr2NoticeSlice&&edit.weight(editorInstrument->selectedSlice)>=0)))wr2DismissNotice();
+    wr2::audio::Snapshot snapshot;
+    if(!page||!edit.read(snapshot)){
+        slicePoints.wr2Colors=nullptr;padsBacklight.clearWr2Overlay();return;
+    }
+    const auto&state=snapshot.state;
+    const unsigned ceiling=mtConfig.values.padsLightFront;
+    uint8_t levels[48];
+    const auto*stock=display.getTheme().sliceColors;
+    for(unsigned i=0;i<48;++i){
+        levels[i]=static_cast<uint8_t>(wr2::ui::Editor::led(state,i,edit.master(),ceiling));
+        const auto color=i==editorInstrument->selectedSlice?stock[slicePoints.isSliceZerocrossed[i]?2:1]:stock[0];
+        wr2MarkerColors[i]=wr2::ui::Editor::marker(state,i,edit.master(),color);
+    }
+    slicePoints.wr2Colors=wr2MarkerColors;padsBacklight.setWr2Overlay(levels);
+    const int weight=edit.weight(editorInstrument->selectedSlice);
+    if(weight>=0){snprintf(wr2WeightText,sizeof(wr2WeightText),"%d%%",weight);}
+    else wr2WeightText[0]=0;
+    display.setControlText2(label[4],wr2WeightText);
+    const auto*palette=display.getTheme().activeButtonLabelsColors;
+    for(unsigned i=0;i<4;++i)wr2TrigColors[i]=palette[i];
+    if(edit.editing()){wr2TrigColors[0]=0xcd1818;wr2TrigColors[1]=0xcd1818;wr2TrigColors[2]=0xcd1818;}
+    display.setControlColors(label[1],edit.editing()?wr2TrigColors:palette);
+    display.refreshControl(label[1]);display.refreshControl(label[4]);
+    display.refreshControl(slicePointsControl);
+}
+bool cSamplePlayback::wr2Button(unsigned button,uint8_t state){
+    if(!wr2Page())return false;
+    // Every callback state is consumed; only press can mutate RAM.
+    if(state!=buttonPress)return true;
+    wr2DismissNotice();
+    wr2Refresh();
+    auto&edit=wr2ui::editor();const unsigned slice=editorInstrument->selectedSlice;
+    wr2::Result result=wr2::Result::Unchanged;
+    if(button==0)selectedPlace=0;
+    else if(button==1){result=edit.trig(slice);selectedPlace=edit.editing()?wr2TrigPlace:0;}
+    else if(button==2)result=edit.addMember(slice);
+    else if(button==3)result=edit.removeSlice(slice);
+    else if(button==4&&edit.editing())selectedPlace=4;
+    if(result!=wr2::Result::Applied&&result!=wr2::Result::Unchanged){
+        mtPopups.showInfoPopup("WR2", "Select a valid group/slice");wr2Notice=true;wr2NoticeSlice=static_cast<uint8_t>(slice);
+    }
+    wr2Refresh();activateLabelsBorder();return true;
+}
+
+#endif

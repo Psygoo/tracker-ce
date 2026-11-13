@@ -1,3 +1,9 @@
+#if TRACKER_CE_ENABLE_WR2
+#include "NativePersistence.h"
+#endif
+#if TRACKER_CE_ENABLE_WR2
+#include "NativeUi.h"
+#endif
 #include "ProjectOpen.h"
 
 #include "fileManager.h"
@@ -139,6 +145,10 @@ void ProjectOpen::openProjectInit()
     copyStep = 0;
 
     newFileManager.stopAudioEngine();
+#if TRACKER_CE_ENABLE_WR2
+    wr2persist::abort();
+    wr2ui::resetProject();
+#endif
 
     listProjectNewInstruments();
 
@@ -363,6 +373,9 @@ void ProjectOpen::openProjectFinish()
     newFileManager.setStatus(fmIdle);
     newFileManager.setCurrentOperation(fmNoOperation);
 
+#if TRACKER_CE_ENABLE_WR2
+    wr2persist::stageOpen(); // capture actual source before Workspace clears native path strings
+#endif
     if (!newFileManager.openProjectFromWorkspace())
     {
         newFileManager.createNewProjectInWorkspace();

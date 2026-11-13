@@ -12,6 +12,12 @@ class mtEffectLimiter : public mtEffect
     virtual bool getProcessState() override;
     virtual uint32_t getExpectedProcessLength() override;
 
+#if TRACKER_CE_ENABLE_SD_EDITS
+    void commitSdHistory(const mtEffectLimiter& from);
+    // Foreground-only, continuous per-channel DSP; startProcess initializes once.
+    void processSdChannel(unsigned channel, int16_t* input, int16_t* output, int count);
+#endif
+
   private:
     uint16_t threshold;
     float attackCoeff;

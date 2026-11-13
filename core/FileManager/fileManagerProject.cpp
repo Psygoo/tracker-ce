@@ -1,3 +1,9 @@
+#if TRACKER_CE_ENABLE_WR2
+#include "NativePersistence.h"
+#endif
+#if TRACKER_CE_ENABLE_WR2
+#include "NativeUi.h"
+#endif
 #include "fileManagerDefs.h"
 #include "mtStructs.h"
 
@@ -194,6 +200,9 @@ void cFileManager::modifyWorkspaceProjectFile()
 
 void cFileManager::getDefaultProject(struct strMtProject* source)
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(source==&mtProject){wr2persist::abort();wr2ui::resetProject();}
+#endif
     source->instruments_count = 0;
     source->patterns_count = 0;
     source->max_memory = SAMPLE_MEMORY_SIZE;

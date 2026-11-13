@@ -6,6 +6,21 @@
 #include "mtStructs.h"
 #include "tracker_plugin.h"
 
+inline bool isMonoEffect(unsigned idx){
+#if TRACKER_CE_ENABLE_SD_MONO
+ return idx==editorEffectStereoMonoSD;
+#else
+ (void)idx;return false;
+#endif
+}
+inline bool isSdMonoEffect(unsigned idx,uint32_t frames){return isMonoEffect(idx)&&frames>EDIT_BUFF_SIZE/2;}
+inline bool isSdRegionEffect(unsigned idx,uint32_t frames){
+#if TRACKER_CE_ENABLE_SD_EDITS
+ return frames>EDIT_BUFF_SIZE/2&&(idx==editorEffectCut||idx==editorEffectReverse||idx==editorEffectFadeIn||idx==editorEffectFadeOut||idx==editorEffectNormalizer||idx==editorEffectAmplifier||idx==editorEffectOverdrive||idx==editorEffectBitcrusher||idx==editorEffectEQ||idx==editorEffectLimiter||idx==editorEffectCompresor);
+#else
+ (void)idx;(void)frames;return false;
+#endif
+}
 static constexpr int kMaxParametersInEffect = 12;
 
 char* const effectNamesLabels[editorEffectMax] = {
@@ -17,7 +32,11 @@ char* const effectNamesLabels[editorEffectMax] = {
     (char*)"Limiter",          (char*)"Compressor",
     (char*)"WT Smoother",      (char*)"Timestretch Beat",
     (char*)"Timestretch Note", (char*)"Fade In",
-    (char*)"Fade Out",         (char*)"Modular"
+    (char*)"Fade Out",
+#if TRACKER_CE_ENABLE_SD_MONO
+    (char*)"Stereo to Mono",
+#endif
+    (char*)"Modular"
 };
 
 struct strEffectDisplayParams
@@ -41,6 +60,16 @@ struct strEffectDefaultParams
 {
     float parameter[kMaxParametersInEffect];
 };
+
+#if TRACKER_CE_ENABLE_SD_MONO
+namespace sdMonoParams {
+static const char* const labels[]={"Source","Gain"};
+static float upper[]={3,6},lower[]={0,-12},step[]={1,0.5f},mult[]={1,1};
+static const char* const after[]={nullptr," dB"};
+static const char type[]={'l','f'};
+static char* items[]={(char*)"Merge L+R",(char*)"Left Only",(char*)"Right Only",(char*)"Side L-R"};
+}
+#endif
 
 const strEffectDisplayConstantParams effectDisplayConstantParams[editorEffectMax] = {
     { 1,
@@ -151,6 +180,9 @@ const strEffectDisplayConstantParams effectDisplayConstantParams[editorEffectMax
       timestretchNoteParams::displayType },
     {}, // fade in  -  brak drugiego ekranu
     {}, // fade out - brak drugiego ekranu
+#if TRACKER_CE_ENABLE_SD_MONO
+    {2,sdMonoParams::labels,sdMonoParams::upper,sdMonoParams::lower,sdMonoParams::step,sdMonoParams::mult,sdMonoParams::after,sdMonoParams::type}, // native list parameter
+#endif
     {}  // modular - dynamiczne parametry
 };
 
@@ -172,6 +204,9 @@ const strEffectDefaultParams effectDefaultParamsTable[editorEffectMax] = {
     { { 0.0f, 100.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f } },      // timestretch note
     {}, // fade in - brak drugiego ekranu
     {}, // fade out - brak drugiego ekranu
+#if TRACKER_CE_ENABLE_SD_MONO
+    {}, // Stereo to Mono SD
+#endif
     {}  // modular
 };
 
@@ -217,6 +252,16 @@ class cSampleEditor : public ModuleBase
     void setTooLongProcessedSampleFunctions();
     bool isParametersScreen();
     bool canApplyCurrentEffect() const;
+    bool hasUndo() const;
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    void initSdIndicatorControl();
+    void refreshSdIndicator(const char* title);
+    bool usesSdEditing() const;
+    void configureEffectList();
+    unsigned effectListRow() const;
+    bool canPreviewCurrentEffect() const;
+    bool canUseMainAction();
+#endif
 
     void noteOnHandle(uint8_t channel, uint8_t note, uint8_t velocity, int16_t source);
     void noteOffHandle(uint8_t channel, uint8_t note, uint8_t velocity, int16_t source);
@@ -373,6 +418,14 @@ class cSampleEditor : public ModuleBase
     hControl bar[8];
     hControl paramList[kEffectPageParams];
     hControl effectList;
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    hControl sdModeLabel = -1;
+    uint32_t sdModeColors[4]{};
+    strLabelData sdModeData{};
+    char* sdEffectNames[editorEffectMax]{};
+    uint8_t sdEffectIds[editorEffectMax]{};
+    unsigned sdEffectCount = 0;
+#endif
     hControl blankSpaceCover;
     hControl spectrum[2];
     hControl spectrumPoints;
@@ -407,6 +460,9 @@ class cSampleEditor : public ModuleBase
     bool isLoadedData;
     bool isProcessedData;
 
+    #if TRACKER_CE_ENABLE_SD_MONO
+    bool convertedToMono=false,undoWasMono=false;
+#endif
     bool confirmedDataIsChanged;
     bool reloadOnEndSaving;
     uint8_t afterReloadInstrumentIdx;

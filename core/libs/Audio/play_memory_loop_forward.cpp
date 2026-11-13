@@ -113,6 +113,9 @@ AUDIO_CORE_FLASH void AudioPlayMemory::playLoopForward(uint8_t instrIdx, int8_t 
                                         pitchControl);
     }
 
+#if TRACKER_CE_ENABLE_WR2
+    wr2ClearActive();
+#endif
     playing = 1;
     //	__enable_irq();
     AudioInterrupts();

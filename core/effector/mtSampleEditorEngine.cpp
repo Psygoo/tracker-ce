@@ -17,6 +17,9 @@
 #include "mtEffectTimestretch.h"
 #include "mtEffectWavetableSmoother.h"
 #include "mtEffectModular.h"
+#if TRACKER_CE_ENABLE_SD_MONO
+#include "mtEffectStereoMono.h"
+#endif
 
 mtEffect* sampleEditorEffect[editorEffectMax] = { &sampleEditorNormalizer,
                                                   &sampleEditorCut,
@@ -35,6 +38,9 @@ mtEffect* sampleEditorEffect[editorEffectMax] = { &sampleEditorNormalizer,
                                                   &sampleEditorTimestretchNote,
                                                   &sampleEditorFadeIn,
                                                   &sampleEditorFadeOut,
+#if TRACKER_CE_ENABLE_SD_MONO
+                                                  &sampleEditorStereoMono,
+#endif
                                                   &sampleEditorModular };
 
 //******************************DELAY

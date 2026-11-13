@@ -56,6 +56,15 @@ int32_t mtEffectLimiter::processBlock()
     if (processedBlockLength < 8192)
         state = false;
 
+#if TRACKER_CE_ENABLE_SD_EDITS
+    for (int channel = 0; channel < kChannels; channel++)
+    {
+        processSdChannel(channel,
+                         channelParams[channel].srcAddr,
+                         channelParams[channel].dstAddr,
+                         processedBlockLength);
+    }
+#else
     for (int channel = 0; channel < kChannels; channel++)
     {
 
@@ -91,6 +100,7 @@ int32_t mtEffectLimiter::processBlock()
               channelParams[channel].g * *channelParams[channel].srcAddr++;
         }
     }
+#endif
     processedSamples += processedBlockLength;
 
     if (!state)
@@ -117,3 +127,54 @@ uint32_t mtEffectLimiter::getExpectedProcessLength()
 
 mtEffectLimiter sampleEditorLimiter;
 //***********
+
+#if TRACKER_CE_ENABLE_SD_EDITS
+void mtEffectLimiter::processSdChannel(unsigned channel,
+                                       int16_t* input,
+                                       int16_t* output,
+                                       int processedBlockLength)
+{
+    channelParams[channel].srcAddr = input;
+    channelParams[channel].dstAddr = output;
+
+    for (int n = 0; n < processedBlockLength; n++)
+    {
+        uint16_t inputAbs = (*channelParams[channel].srcAddr < 0) ? -*channelParams[channel].srcAddr
+                                                                  : *channelParams[channel].srcAddr;
+
+        channelParams[channel].a =
+          (1 - timeAverageCoeff) * channelParams[channel].a + timeAverageCoeff * inputAbs;
+
+        channelParams[channel].coeff =
+          (channelParams[channel].a > channelParams[channel].xpeak) ? attackCoeff : releaseCoeff;
+
+        channelParams[channel].xpeak =
+          (1 - channelParams[channel].coeff) * channelParams[channel].xpeak +
+          channelParams[channel].coeff * channelParams[channel].a;
+
+        channelParams[channel].f = threshold / (float)channelParams[channel].xpeak;
+        channelParams[channel].f =
+          (channelParams[channel].f < 1.0f) ? channelParams[channel].f : 1.0f;
+
+        channelParams[channel].coeff =
+          (channelParams[channel].f < channelParams[channel].g) ? attackCoeff : releaseCoeff;
+
+        channelParams[channel].g = (1 - channelParams[channel].coeff) * channelParams[channel].g +
+                                   channelParams[channel].coeff * channelParams[channel].f;
+
+        *channelParams[channel].dstAddr++ =
+          channelParams[channel].g * *channelParams[channel].srcAddr++;
+    }
+}
+#endif
+
+#if TRACKER_CE_ENABLE_SD_EDITS
+void mtEffectLimiter::commitSdHistory(const mtEffectLimiter& from)
+{
+    for (int ch = 0; ch < kChannels; ++ch)
+    {
+        channelParams[ch].g = from.channelParams[ch].g;
+        channelParams[ch].xpeak = from.channelParams[ch].xpeak;
+    }
+}
+#endif

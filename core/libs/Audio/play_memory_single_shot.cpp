@@ -82,6 +82,9 @@ AUDIO_CORE_FLASH void AudioPlayMemory::playSingleShot(uint8_t instrIdx, int8_t n
                                         pitchControl);
     }
 
+#if TRACKER_CE_ENABLE_WR2
+    wr2ClearActive();
+#endif
     playing = 1;
 
     //	__enable_irq();

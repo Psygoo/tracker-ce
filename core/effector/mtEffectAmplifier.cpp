@@ -1,3 +1,6 @@
+#if TRACKER_CE_ENABLE_SD_EDITS
+#include "sampleProcessing/PcmEffects.h"
+#endif
 #include "mtEffectAmplifier.h"
 
 mtEffectAmplifier sampleEditorAmplifier;
@@ -35,6 +38,9 @@ int32_t mtEffectAmplifier::processBlock()
     {
         for (uint16_t i = 0; i < processedBlockLength; i++)
         {
+#if TRACKER_CE_ENABLE_SD_EDITS
+            *channelParams[channel].dstAddr=ce_pcm_scale(*channelParams[channel].srcAddr,amp);
+#else
             int32_t processVal = amp * (*channelParams[channel].srcAddr);
 
             if (processVal > MAX_SIGNED_16BIT)
@@ -43,6 +49,7 @@ int32_t mtEffectAmplifier::processBlock()
                 processVal = MIN_SIGNED_16BIT;
 
             *channelParams[channel].dstAddr = (int16_t)processVal;
+#endif
             channelParams[channel].dstAddr++;
             channelParams[channel].srcAddr++;
         }

@@ -31,6 +31,9 @@
 #include "VoiceStreamManager.h"
 #include "amplifier.h"
 #include "mtStructs.h"
+#if TRACKER_CE_ENABLE_WR2
+#include "NativeBridge.h"
+#endif
 
 class Timer;
 
@@ -57,6 +60,16 @@ class AudioPlayMemory : public AudioStream
         envelope.wtReleaseStartPhase = 0;
     }
 
+#if TRACKER_CE_ENABLE_WR2
+    friend class wr2native::Frame;
+    wr2native::State wr2State;
+    void wr2Queue(uint8_t,int8_t);
+    void wr2Cancel();
+    void wr2ClearActive();
+    uint8_t wr2Slice(uint8_t,uint8_t) const;
+    bool wr2Prepared(uint8_t,uint16_t,uint16_t);
+    void wr2Commit(uint8_t);
+#endif
     static constexpr int SLIDE_MAX = 255;
     static constexpr int SLIDE_MIN = 0;
     static constexpr uint16_t GRANULAR_LOOKUP_SIZE = 1000;

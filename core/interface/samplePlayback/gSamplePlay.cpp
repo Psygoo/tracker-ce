@@ -189,6 +189,17 @@ void cSamplePlayback::showDefaultScreen()
             // processWavetableCursor(editorInstrument->wavetableCurrentWindow);
             hideWavetablePositionCursor();
 
+#if TRACKER_CE_ENABLE_WR2
+            labelDataMore.dotIndicator.count=editorInstrument->playMode==playModeBeatSlice?3:2;
+            if(wr2Page()){
+                titleBar->setTitle("Sample Playback / WR2 RAM");
+                labelDataMore.dotIndicator.current=2;
+                const char*texts[6]={"Slice","Trig","Add","Remove","Weight","More"};
+                for(unsigned i=0;i<6;++i){display.setControlText(label[i],texts[i]);display.setControlText2(label[i],"");}
+                for(unsigned i=1;i<4;++i)display.setControlValue(label[i],0);
+                showSlicesSelectValue();wr2Refresh();
+            }else
+#endif
             if (!sliceScreenMode2)
             {
                 labelDataMore.dotIndicator.current = 0;
@@ -685,6 +696,9 @@ void cSamplePlayback::showSlicesSelectValue()
 
 void cSamplePlayback::showSlicesAdjustValue()
 {
+#if TRACKER_CE_ENABLE_WR2
+    if(wr2Page())return; // Native slice navigation must not overwrite Trig.
+#endif
     if (editorInstrument->sliceNumber > 0)
     {
         float timeValue = samplePosToTime(editorInstrument->sample.length);

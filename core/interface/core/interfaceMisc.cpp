@@ -1,3 +1,10 @@
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+#include "SampleFileEdit.h"
+#include "core/interfacePopups.h"
+#endif
+#if TRACKER_CE_ENABLE_WR2
+#include "NativePersistence.h"
+#endif
 #include "core/interface.h"
 
 #include "projectEditor/projectEditor.h"
@@ -28,6 +35,12 @@ static const char* usbStorageModeDisclaimer = {
 //==================================================================================================
 void Interface::openStartupProject()
 {
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(!sampleedit::recover()){mtPopups.showInfoPopup("Sample recovery blocked.","Reinsert the card and restart; backups retained.");return;}
+#endif
+#if TRACKER_CE_ENABLE_WR2
+    wr2persist::stageStartupOpen(); // resolve the saved project path only after Workspace is loaded
+#endif
     if (!newFileManager.openProjectFromWorkspace())
     {
         openNewProject();
@@ -317,7 +330,7 @@ void Interface::hideDisplayShutdown()
     turnOffProgressBar = -1;
 }
 
-// takie różne globalne rzeczy
+// takie rÃ³Å¼ne globalne rzeczy
 void Interface::commonThingsUpdate()
 {
     if (songTimer.enabled)

@@ -1,3 +1,6 @@
+#if TRACKER_CE_ENABLE_WR2
+#include "NativePersistence.h"
+#endif
 #include "WorkspaceProjectLoad.h"
 
 #include "fileManager.h"
@@ -162,6 +165,9 @@ void WorkspaceProjectLoad::loadProjectFromWorkspaceFinish()
     }
 
     sequencer.switchRamPatternsNow();
+#if TRACKER_CE_ENABLE_WR2
+    wr2persist::finishOpen(); // explicit Open keeps its captured source; startup resolves the loaded Workspace path
+#endif
     newFileManager.startAudioEngine();
 
     newFileManager.getPatternsMetadata()->loadPatternsMetadata();

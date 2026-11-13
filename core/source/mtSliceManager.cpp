@@ -1,3 +1,6 @@
+#if TRACKER_CE_ENABLE_WR2
+#include "NativeUi.h"
+#endif
 #include "mtSliceManager.h"
 #include "VoiceStreamManager.h"
 #include "mtEffect.h"
@@ -11,6 +14,9 @@ void mtSliceManager::addSlice(strInstrument* instr)
 {
     if (instr->sliceNumber == MAX_SLICE_NUMBER)
         return;
+#if TRACKER_CE_ENABLE_WR2
+    wr2ui::invalidate(instr);
+#endif
     if (instr->sliceNumber == 0)
     {
         instr->sliceNumber++;
@@ -44,6 +50,9 @@ void mtSliceManager::removeSlice(strInstrument* instr)
 {
     if ((instr->sliceNumber == 0) || (instr->sliceNumber <= instr->selectedSlice))
         return;
+#if TRACKER_CE_ENABLE_WR2
+    wr2ui::invalidate(instr);
+#endif
     if ((instr->sliceNumber - 1) == instr->selectedSlice)
     {
         instr->selectedSlice = instr->sliceNumber == 1 ? 0 : instr->selectedSlice - 1;
@@ -107,6 +116,9 @@ void mtSliceManager::adjustSlice(strInstrument* instr, int32_t val)
 }
 void mtSliceManager::autoSlice(strInstrument* instr)
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2ui::invalidate(instr);
+#endif
     memset(instr->slices, 0, MAX_SLICE_NUMBER * 2);
     instr->selectedSlice = 0;
 
@@ -128,6 +140,9 @@ void mtSliceManager::autoSlice(strInstrument* instr)
 
 void mtSliceManager::equalSlice(strInstrument* instr, uint8_t n)
 {
+#if TRACKER_CE_ENABLE_WR2
+    wr2ui::invalidate(instr);
+#endif
     instr->sliceNumber = n;
     if (instr->selectedSlice >= n)
         instr->selectedSlice = (n > 0) ? n - 1 : 0;

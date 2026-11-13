@@ -4,6 +4,7 @@
 #include "sampleEditor.h"
 
 #include <cmath>
+#include <cstdio>
 #include <string.h>
 
 void cSampleEditor::initDisplayControls()
@@ -115,6 +116,8 @@ void cSampleEditor::initDisplayControls()
     effectListProperties.data = &effectListData;
     effectList = display.createControl<cList>(&effectListProperties);
 
+
+
     // Waveform
     spectrumData[0].init(600, strTrackerSpectrum::PointsLimit::k300);
     spectrumData[1].init(600, strTrackerSpectrum::PointsLimit::k300);
@@ -217,9 +220,15 @@ void cSampleEditor::showMainScreen()
         }
     }
 
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(editorInstrument&&editorInstrument->sample.length>EDIT_BUFF_SIZE/2)display.setControlColors(label[5],canUseMainAction()?display.getTheme().activeButtonLabelsColors:display.getTheme().inactiveLabelsColors);
+#endif
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(previewState != previewStateStop && !canPreviewCurrentEffect()) display.setControlColors(label[6],display.getTheme().inactiveLabelsColors);
+#endif
     if (editorInstrument->isActive)
     {
-        if (!currentEffect->undoParams.isEnable)
+        if (!hasUndo())
         {
             display.setControlColors(label[3], display.getTheme().inactiveLabelsColors);
         }
@@ -279,6 +288,9 @@ void cSampleEditor::showMainScreen()
 
     // title bar
     showTitleBar(paramsScreenLabel);
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    refreshSdIndicator(paramsScreenLabel);
+#endif
 
     // popups
     display.setControlHide(popupProgressBar);
@@ -427,6 +439,10 @@ void cSampleEditor::showEffectParamsScreen()
             display.setControlColors(label[i], display.getTheme().activeLabelsColors);
         }
     }
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    if(previewState != previewStateStop && !canPreviewCurrentEffect()) display.setControlColors(label[6],display.getTheme().inactiveLabelsColors);
+    if(editorInstrument&&editorInstrument->sample.length>EDIT_BUFF_SIZE/2&&!canApplyCurrentEffect())display.setControlColors(label[7],display.getTheme().inactiveLabelsColors);
+#endif
 
     for (uint8_t i = 0; i < 8; i++)
     {
@@ -456,6 +472,9 @@ void cSampleEditor::showEffectParamsScreen()
 
     // title label
     showTitleBar(paramsScreenLabel);
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    refreshSdIndicator(paramsScreenLabel);
+#endif
 
     // popups
     display.setControlHide(popupProgressBar);
@@ -717,6 +736,9 @@ void cSampleEditor::showStaticPopupCommonWindow()
     }
 
     showTitleBar(paramsScreenLabel);
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    refreshSdIndicator(paramsScreenLabel);
+#endif
 
     // popups
     display.setControlHide(popupProgressBar);
@@ -780,11 +802,17 @@ void cSampleEditor::showPopupTooLongProcessedSampleWindow()
 void cSampleEditor::showPreviewLabel()
 {
     display.setControlText(label[6], "Preview");
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    display.setControlColors(label[6],canPreviewCurrentEffect()?display.getTheme().activeLabelsColors:display.getTheme().inactiveLabelsColors);
+#endif
     display.refreshControl(label[6]);
 }
 void cSampleEditor::showPlayLabel()
 {
     display.setControlText(label[6], "Preview");
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+    display.setControlColors(label[6],canPreviewCurrentEffect()?display.getTheme().activeLabelsColors:display.getTheme().inactiveLabelsColors);
+#endif
     display.refreshControl(label[6]);
 }
 void cSampleEditor::showStopLabel()
@@ -794,7 +822,7 @@ void cSampleEditor::showStopLabel()
 }
 
 //==============================================================================================================
-// schowanie zbędnych kontrolek przy np. pokazywaniu listy instrumentów
+// schowanie zbÄ™dnych kontrolek przy np. pokazywaniu listy instrumentÃ³w
 void cSampleEditor::hideUselessControls()
 {
     display.setControlHide(spectrumPoints);
@@ -803,3 +831,40 @@ void cSampleEditor::hideUselessControls()
     display.setControlHide(spectrum[0]);
     display.setControlHide(spectrum[1]);
 }
+
+#if TRACKER_CE_ENABLE_SD_MONO || TRACKER_CE_ENABLE_SD_EDITS
+void cSampleEditor::initSdIndicatorControl()
+{
+    // Allocated before the native title background: display appends controls in reverse order.
+    strControlProperties p;
+    p.x=9;p.y=48;p.w=380;p.h=0;
+    p.style=controlStyleCenterY|controlStyleFont5|controlStyleSpecialFx;
+    p.text="LONG SAMPLE   SD STREAMING MODE";p.colors=sdModeColors;p.data=&sdModeData;
+    sdModeLabel=display.createControl<cLabel>(&p);
+}
+void cSampleEditor::refreshSdIndicator(const char* title)
+{
+    display.setControlHide(sdModeLabel);
+    if(usesSdEditing()&&mtProject.values.lastUsedInstrument<48){
+        const auto&font=fonts[4];const int width=getTextWidth(&font,"LONG SAMPLE   SD STREAMING MODE",31);
+        bool ascii=true;char name[SAMPLE_NAME_SIZE+1];
+        const auto slot=mtProject.values.lastUsedInstrument;
+        std::snprintf(name,SAMPLE_NAME_SIZE,"%d. %s",int(slot)+1,mtProject.instrument[slot].sample.file_name);
+        for(const unsigned char*p=reinterpret_cast<const unsigned char*>(name);*p;++p)if(*p>=128)ascii=false;
+        const int nameWidth=ascii?getTextWidth(&fonts[3],name,static_cast<uint16_t>(strlen(name))):790;
+        const int titleWidth=std::min<int>(270,getTextWidth(&fonts[3],title,static_cast<uint16_t>(strlen(title))));
+        const int afterTitle=9+titleWidth+8;
+        const bool inTitle=ascii&&afterTitle+width+8<=790-nameWidth&&font.height<=26;
+        const int x=inTitle?afterTitle:(screenType==mainScreen?9:409);
+        const int y=inTitle?13:48;
+        // Main waveform begins below this band; settings have at most four columns (x<400).
+        if(width<=380&&font.height<=26){
+            sdModeColors[0]=sdModeColors[2]=sdModeColors[3]=display.getTheme().red;
+            sdModeData.line.x1=getTextWidth(&font,"LONG SAMPLE ",12)+getTextWidth(&font," ",1)/2;
+            sdModeData.line.x2=sdModeData.line.x1+1;sdModeData.line.y1=sdModeData.line.y2=0;sdModeData.line.color=display.getTheme().red;
+            display.setControlPosition(sdModeLabel,x,y);display.setControlShow(sdModeLabel);
+        }
+    }
+    display.refreshControl(sdModeLabel);
+}
+#endif

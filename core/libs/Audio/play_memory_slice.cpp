@@ -106,6 +106,9 @@ AUDIO_CORE_FLASH void AudioPlayMemory::playSlice(uint8_t instrIdx, int8_t note)
         }
     }
 
+#if TRACKER_CE_ENABLE_WR2
+    wr2ClearActive();
+#endif
     playing = 1;
     //	__enable_irq();
     AudioInterrupts();
