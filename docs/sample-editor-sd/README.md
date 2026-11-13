@@ -1,4 +1,4 @@
-# Sample Editor SD — long-sample editing
+# SD Sample Editor — long-sample editing
 
 Edit long Tracker+ samples using the familiar Sample Editor, without loading the complete file into RAM. This optional module is independent of WR2.
 

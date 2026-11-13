@@ -1,4 +1,4 @@
-# Modular firmware tests
+# WR2 and SD Sample Editor tests
 
 Run from the repository root in PowerShell with Python 3 and MSVC C++ Build Tools installed. Add `-AddressSanitizer` to each runner for ASan. Sources are extracted from production; filesystem, hardware and some UI boundaries are simulated.
 

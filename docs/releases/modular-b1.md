@@ -1,4 +1,4 @@
-# Tracker CE Modular — Beta 1 (Tracker+)
+# Tracker CE — Weighted Random Slices & SD Sample Editor — Beta 1
 
 [Download firmware](https://github.com/Psygoo/tracker-ce/releases/tag/modular-b1) · [WR2 guide](../../modules/wr2/README.md) · [SD guide](../sample-editor-sd/README.md)
 
@@ -11,7 +11,7 @@ The maintainer has confirmed physical testing of **MODB1 on Tracker+**. This rel
 
 ## Firmware integrity and installation
 
-File: **TrackerPlus_MOD_B1.ptf** (4,938,378 bytes).
+Public filename: **TrackerPlus_WR2_SD_B1.ptf** (4,938,378 bytes).
 
 SHA-256:
 
@@ -43,3 +43,9 @@ Stack reserve: 20,480 B; heap reserve: 138,752 B. Combined DTC is 97.01% of 352 
 Tracker+ only for these modules. SD Undo is one-level and session/context-local. Free SD space and temporary RAM are required. Preview may safely refuse when memory is unavailable. Crop/Undo has a difference between the reported preservation in physical tests and a structural invalidation path in code/host tests: see the [compatibility note](CROP_COMPATIBILITY.md). No Crop remapping or firmware behaviour was changed for publication.
 
 The [integrity record](modular-b1-integrity.json) records byte identity of firmware-source inputs against the physically validated build's source snapshot. Original Polyend/CE credits and all source, third-party and precompiled library license terms remain in place.
+
+## Naming and existing links
+
+The project is now **Tracker CE — Weighted Random Slices & SD Sample Editor**. The preferred source tag is `wr2-sd-b1`; it includes this presentation update with unchanged firmware sources. The original `modular-b1` tag and Release URL are retained for compatibility, not as a second Beta.
+
+Use [TrackerPlus_WR2_SD_B1.ptf](https://github.com/Psygoo/tracker-ce/releases/download/modular-b1/TrackerPlus_WR2_SD_B1.ptf) for new downloads. The previous [TrackerPlus_MOD_B1.ptf download](https://github.com/Psygoo/tracker-ce/releases/download/modular-b1/TrackerPlus_MOD_B1.ptf) remains available on the **same Release**, with identical bytes and SHA-256. No rebuild was performed. The historical integrity record retains the original filename and the firmware retains its internal `MODB1` build identifier.
