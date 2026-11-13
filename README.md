@@ -1,4 +1,4 @@
-# Tracker CE — Weighted Random Slices & SD Sample Editor
+# Tracker CE — Weighted Random Slices & SD Streaming for Long Sample Editing
 
 Two optional, independently selectable features for **Polyend Tracker+**, built on [Polyend Tracker Community Edition](https://github.com/polyend/tracker-ce).
 
